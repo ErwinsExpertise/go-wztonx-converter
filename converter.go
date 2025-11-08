@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -120,11 +119,9 @@ func (c *Converter) writeNXFile() error {
 	}
 	defer file.Close()
 
-	// Use buffered writer for better performance
-	bufferedWriter := bufio.NewWriterSize(file, 1024*1024) // 1MB buffer
-	defer bufferedWriter.Flush()
-
-	return c.writeNXData(bufferedWriter)
+	// Pass file directly as it implements io.WriteSeeker
+	// writeNXData uses seeking to update the header after writing all data
+	return c.writeNXData(file)
 }
 
 // writeNXData writes the actual NX format data
@@ -613,13 +610,13 @@ func (c *Converter) compressBitmapsParallel() error {
 func (c *Converter) flattenNodes(root *Node) {
 	var queue []*Node
 	queue = append(queue, root)
-	
+
 	for len(queue) > 0 {
 		node := queue[0]
 		queue = queue[1:]
-		
+
 		c.nodes = append(c.nodes, node)
-		
+
 		// Add all children to the queue so they get added contiguously
 		queue = append(queue, node.Children...)
 	}

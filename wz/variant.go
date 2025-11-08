@@ -91,7 +91,6 @@ func (m *WZVariant) Parse(file *WZFileBlob, offset int64) {
 				file.skip(x)
 			}
 		}
-		
 
 	default:
 		panic(fmt.Sprint("Unknown wz prop type ", m.Type, " at ", m.GetPath(), " AT ", file.pos()))

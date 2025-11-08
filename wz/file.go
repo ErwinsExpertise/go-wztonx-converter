@@ -69,7 +69,7 @@ func (m *WZFile) Parse() {
 
 	m.debug("Header: ", header)
 	if header != "PKG1" {
-		panic(errors.New("Not a PKG1/WZ file"))
+		panic(errors.New("not a PKG1/WZ file"))
 	}
 
 	m.mainBlob.skip(8) // Filesize
