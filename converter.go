@@ -491,14 +491,21 @@ func (c *Converter) compressBitmapsParallel() error {
 }
 
 // flattenNodes flattens the node tree into a list
-// IMPORTANT: Preserves order, does NOT sort
+// IMPORTANT: Ensures each parent's children are stored contiguously in the array,
+// as required by the NX format (children at indices [firstChild, firstChild+count-1])
 func (c *Converter) flattenNodes(root *Node) {
-	var flatten func(*Node)
-	flatten = func(node *Node) {
+	var queue []*Node
+	queue = append(queue, root)
+	
+	for len(queue) > 0 {
+		node := queue[0]
+		queue = queue[1:]
+		
 		c.nodes = append(c.nodes, node)
+		
+		// Add all children to the queue so they get added contiguously
 		for _, child := range node.Children {
-			flatten(child)
+			queue = append(queue, child)
 		}
 	}
-	flatten(root)
 }

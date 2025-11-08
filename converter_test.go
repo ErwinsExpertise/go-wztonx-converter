@@ -97,6 +97,94 @@ func TestNodeFlattening(t *testing.T) {
 	}
 }
 
+func TestNodeFlatteningWithNesting(t *testing.T) {
+	converter := NewConverter("test.wz", "test.nx", false, false)
+
+	// Create a more complex tree structure:
+	// root
+	//   ├─ child1
+	//   │   └─ grandchild1
+	//   └─ child2
+	//       ├─ grandchild2
+	//       └─ grandchild3
+
+	grandchild1 := &Node{Name: "grandchild1", Type: NodeTypeInt64, Data: int64(1), Children: []*Node{}}
+	grandchild2 := &Node{Name: "grandchild2", Type: NodeTypeInt64, Data: int64(2), Children: []*Node{}}
+	grandchild3 := &Node{Name: "grandchild3", Type: NodeTypeInt64, Data: int64(3), Children: []*Node{}}
+
+	child1 := &Node{
+		Name:     "child1",
+		Type:     NodeTypeNone,
+		Children: []*Node{grandchild1},
+	}
+
+	child2 := &Node{
+		Name:     "child2",
+		Type:     NodeTypeNone,
+		Children: []*Node{grandchild2, grandchild3},
+	}
+
+	root := &Node{
+		Name:     "root",
+		Type:     NodeTypeNone,
+		Children: []*Node{child1, child2},
+	}
+
+	// Flatten the tree
+	converter.flattenNodes(root)
+
+	// Expected order with breadth-first:
+	// 0: root
+	// 1: child1
+	// 2: child2
+	// 3: grandchild1
+	// 4: grandchild2
+	// 5: grandchild3
+
+	if len(converter.nodes) != 6 {
+		t.Fatalf("Expected 6 nodes, got %d", len(converter.nodes))
+	}
+
+	expectedOrder := []string{"root", "child1", "child2", "grandchild1", "grandchild2", "grandchild3"}
+	for i, expected := range expectedOrder {
+		if converter.nodes[i].Name != expected {
+			t.Errorf("Node at index %d: expected %s, got %s", i, expected, converter.nodes[i].Name)
+		}
+	}
+
+	// Verify root's children are at indices 1 and 2 (contiguous)
+	// Find root's first child index
+	var rootFirstChild uint32
+	for i, n := range converter.nodes {
+		if n == root.Children[0] {
+			rootFirstChild = uint32(i)
+			break
+		}
+	}
+	if rootFirstChild != 1 {
+		t.Errorf("Root's first child should be at index 1, got %d", rootFirstChild)
+	}
+	// Second child should be at index 2 (rootFirstChild + 1)
+	if converter.nodes[2] != root.Children[1] {
+		t.Errorf("Root's second child should be at index 2")
+	}
+
+	// Verify child2's children are at indices 4 and 5 (contiguous)
+	var child2FirstChild uint32
+	for i, n := range converter.nodes {
+		if n == child2.Children[0] {
+			child2FirstChild = uint32(i)
+			break
+		}
+	}
+	if child2FirstChild != 4 {
+		t.Errorf("Child2's first child should be at index 4, got %d", child2FirstChild)
+	}
+	if converter.nodes[5] != child2.Children[1] {
+		t.Errorf("Child2's second child should be at index 5")
+	}
+}
+
 func TestColorTables(t *testing.T) {
 	// Test table4
 	if table4[0] != 0x00 || table4[15] != 0xFF {
