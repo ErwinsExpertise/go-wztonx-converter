@@ -161,15 +161,6 @@ func convertRGB565(data []byte, width, height int) ([]byte, error) {
 	return output, nil
 }
 
-// decompressWZData decompresses the zlib-compressed WZ data
-func decompressWZData(compressed []byte) ([]byte, error) {
-	// WZ data is typically zlib compressed
-	// The go-wz library should handle this, but if we need to do it manually:
-	// Use compress/zlib or compress/flate
-	// For now, assume data is already decompressed by go-wz
-	return compressed, nil
-}
-
 // scaleImage scales an RGBA image by the given factor
 // This is used when format2 == 4 to scale by 16x
 func scaleImage(data []byte, width, height, scale int) []byte {

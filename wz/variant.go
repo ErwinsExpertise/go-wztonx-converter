@@ -34,22 +34,18 @@ func (m *WZVariant) Parse(file *WZFileBlob, offset int64) {
 	// no data
 	case 0:
 		m.Value = nil
-		break // Nothing
 
 	// int16
 	case 2, 11:
 		m.Value = file.readInt16()
-		break
 
 	// int32
 	case 3, 19:
 		m.Value = int32(file.readWZInt())
-		break
 
 	// int64
 	case 20:
 		m.Value = file.readWZLong()
-		break
 
 	// float32
 	case 4:
@@ -58,17 +54,14 @@ func (m *WZVariant) Parse(file *WZFileBlob, offset int64) {
 		} else {
 			m.Value = float32(0.0)
 		}
-		break
 
 	// float64
 	case 5:
 		m.Value = file.readFloat64()
-		break
 
 	// String
 	case 8:
 		m.Value = file.readWZObjectUOL(m.GetPath(), offset)
-		break
 
 		// Sub object
 	case 9:
@@ -98,7 +91,7 @@ func (m *WZVariant) Parse(file *WZFileBlob, offset int64) {
 				file.skip(x)
 			}
 		}
-		break
+		
 
 	default:
 		panic(fmt.Sprint("Unknown wz prop type ", m.Type, " at ", m.GetPath(), " AT ", file.pos()))

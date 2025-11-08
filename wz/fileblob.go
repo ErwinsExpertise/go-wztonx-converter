@@ -248,7 +248,6 @@ func (m *WZFileBlob) readWZObjectUOL(uol string, possibleNeededOffset int64) (re
 	switch key {
 	case 0, 0x73:
 		str = m.readWZString(uol)
-		break
 	case 1, 0x1B:
 		possibleNeededOffset += int64(m.readUInt32())
 		m.peekFor(func() {
@@ -259,7 +258,6 @@ func (m *WZFileBlob) readWZObjectUOL(uol string, possibleNeededOffset int64) (re
 			m.seek(tmp)
 			str = m.readWZString(uol)
 		})
-		break
 	default:
 		panic("Unknown deduplicated wz string type: " + strconv.Itoa(int(key)) + " at " + uol + " AT " + strconv.Itoa(int(m.pos())))
 	}
@@ -303,7 +301,7 @@ func (m *WZFileBlob) readWZString(uol string) (result string) {
 		var mask uint16 = 0xAAAA
 
 		for ; i < size; i += 2 {
-			var char uint16 = uint16(characters[i] | characters[i+1]<<8)
+			var char uint16 = uint16(characters[i]) | uint16(characters[i+1])<<8
 			char ^= mask
 			characters[i] = byte(char)
 			characters[i+1] = byte(char >> 8)

@@ -43,11 +43,9 @@ func (m *Encryption) setWZVariant(variant byte) {
 	case VariantGMS:
 		m.aesIV = GMS_WZ_IV
 		m.aesKey = WZ_AES_KEY
-		break
 	case VariantSEA:
 		m.aesIV = SEA_WZ_IV
 		m.aesKey = WZ_AES_KEY
-		break
 	default:
 		// When the WZ key is set to this, do not expect good results
 		// There has been no version that used this key yet.

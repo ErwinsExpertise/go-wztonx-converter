@@ -29,7 +29,9 @@ func compressLZ4HC(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer := lz4.NewWriter(&buf)
 	// Set high compression level
-	writer.Apply(lz4.CompressionLevelOption(lz4.Level9))
+	if err := writer.Apply(lz4.CompressionLevelOption(lz4.Level9)); err != nil {
+		return nil, err
+	}
 
 	_, err := writer.Write(data)
 	if err != nil {

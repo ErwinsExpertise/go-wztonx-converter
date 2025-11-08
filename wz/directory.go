@@ -63,13 +63,10 @@ func (m *WZDirectory) Parse(file *WZFileBlob, offset int64) {
 				elementType = file.readByte()
 				name = file.readWZString(m.GetPath())
 			})
-			break
 		case 3, 4:
 			name = file.readWZString(m.GetPath())
-			break
 		default:
 			panic(fmt.Sprint("Unknown type in directory? ", elementType))
-			return
 		}
 
 		/*size := */ file.readWZInt() // Blob size

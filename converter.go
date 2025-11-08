@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 )
 
 // NX file format constants
@@ -33,13 +31,11 @@ type Converter struct {
 	hc         bool
 
 	// NX data structures
-	nodes      []*Node
-	strings    []string
-	stringMap  map[string]uint32
-	bitmaps    []BitmapData
-	audio      []AudioData
-	bitmapData bytes.Buffer
-	audioData  bytes.Buffer
+	nodes     []*Node
+	strings   []string
+	stringMap map[string]uint32
+	bitmaps   []BitmapData
+	audio     []AudioData
 }
 
 // Node represents a node in the NX file
@@ -171,14 +167,30 @@ func (c *Converter) writeHeader(w io.Writer) error {
 		return err
 	}
 
-	binary.Write(w, binary.LittleEndian, nodeCount)
-	binary.Write(w, binary.LittleEndian, nodeOffset)
-	binary.Write(w, binary.LittleEndian, stringCount)
-	binary.Write(w, binary.LittleEndian, stringOffset)
-	binary.Write(w, binary.LittleEndian, bitmapCount)
-	binary.Write(w, binary.LittleEndian, bitmapOffset)
-	binary.Write(w, binary.LittleEndian, audioCount)
-	binary.Write(w, binary.LittleEndian, audioOffset)
+	if err := binary.Write(w, binary.LittleEndian, nodeCount); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, nodeOffset); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, stringCount); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, stringOffset); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, bitmapCount); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, bitmapOffset); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, audioCount); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.LittleEndian, audioOffset); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -210,10 +222,18 @@ func (c *Converter) writeNodes(w io.Writer) error {
 			childCount = uint16(len(node.Children))
 		}
 
-		binary.Write(w, binary.LittleEndian, nameID)
-		binary.Write(w, binary.LittleEndian, firstChild)
-		binary.Write(w, binary.LittleEndian, childCount)
-		binary.Write(w, binary.LittleEndian, node.Type)
+		if err := binary.Write(w, binary.LittleEndian, nameID); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.LittleEndian, firstChild); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.LittleEndian, childCount); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.LittleEndian, node.Type); err != nil {
+			return err
+		}
 
 		// Write data based on type
 		if err := c.writeNodeData(w, node); err != nil {
@@ -226,33 +246,42 @@ func (c *Converter) writeNodes(w io.Writer) error {
 
 // writeNodeData writes type-specific node data
 func (c *Converter) writeNodeData(w io.Writer, node *Node) error {
+	var err error
 	switch node.Type {
 	case NodeTypeNone:
-		binary.Write(w, binary.LittleEndian, uint64(0))
+		err = binary.Write(w, binary.LittleEndian, uint64(0))
 	case NodeTypeInt64:
-		binary.Write(w, binary.LittleEndian, node.Data.(int64))
+		err = binary.Write(w, binary.LittleEndian, node.Data.(int64))
 	case NodeTypeDouble:
-		binary.Write(w, binary.LittleEndian, node.Data.(float64))
+		err = binary.Write(w, binary.LittleEndian, node.Data.(float64))
 	case NodeTypeString:
 		strID := c.getStringID(node.Data.(string))
-		binary.Write(w, binary.LittleEndian, uint32(strID))
-		binary.Write(w, binary.LittleEndian, uint32(0)) // padding
+		if err = binary.Write(w, binary.LittleEndian, uint32(strID)); err != nil {
+			return err
+		}
+		err = binary.Write(w, binary.LittleEndian, uint32(0)) // padding
 	case NodeTypePOINT:
 		point := node.Data.([2]int32)
-		binary.Write(w, binary.LittleEndian, point[0])
-		binary.Write(w, binary.LittleEndian, point[1])
+		if err = binary.Write(w, binary.LittleEndian, point[0]); err != nil {
+			return err
+		}
+		err = binary.Write(w, binary.LittleEndian, point[1])
 	case NodeTypeBitmap:
 		bitmapID := node.Data.(uint32)
-		binary.Write(w, binary.LittleEndian, bitmapID)
-		binary.Write(w, binary.LittleEndian, uint32(0)) // padding
+		if err = binary.Write(w, binary.LittleEndian, bitmapID); err != nil {
+			return err
+		}
+		err = binary.Write(w, binary.LittleEndian, uint32(0)) // padding
 	case NodeTypeAudio:
 		audioID := node.Data.(uint32)
-		binary.Write(w, binary.LittleEndian, audioID)
-		binary.Write(w, binary.LittleEndian, uint32(0)) // padding
+		if err = binary.Write(w, binary.LittleEndian, audioID); err != nil {
+			return err
+		}
+		err = binary.Write(w, binary.LittleEndian, uint32(0)) // padding
 	default:
-		binary.Write(w, binary.LittleEndian, uint64(0))
+		err = binary.Write(w, binary.LittleEndian, uint64(0))
 	}
-	return nil
+	return err
 }
 
 // writeStrings writes the string table
@@ -262,8 +291,12 @@ func (c *Converter) writeStrings(w io.Writer) error {
 		// 2 bytes: length
 		// N bytes: UTF-8 string data
 		length := uint16(len(str))
-		binary.Write(w, binary.LittleEndian, length)
-		w.Write([]byte(str))
+		if err := binary.Write(w, binary.LittleEndian, length); err != nil {
+			return err
+		}
+		if _, err := w.Write([]byte(str)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -289,17 +322,27 @@ func (c *Converter) writeBitmaps(w io.Writer) error {
 
 	// Write bitmap info table (width, height, offset)
 	for _, bitmap := range c.bitmaps {
-		binary.Write(w, binary.LittleEndian, bitmap.Width)
-		binary.Write(w, binary.LittleEndian, bitmap.Height)
-		binary.Write(w, binary.LittleEndian, uint32(bitmap.Offset))
+		if err := binary.Write(w, binary.LittleEndian, bitmap.Width); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.LittleEndian, bitmap.Height); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.LittleEndian, uint32(bitmap.Offset)); err != nil {
+			return err
+		}
 	}
 
 	// Write actual compressed bitmap data
 	for _, bitmap := range c.bitmaps {
 		// Write size of compressed data
-		binary.Write(w, binary.LittleEndian, uint32(len(bitmap.CompressedData)))
+		if err := binary.Write(w, binary.LittleEndian, uint32(len(bitmap.CompressedData))); err != nil {
+			return err
+		}
 		// Write compressed data
-		w.Write(bitmap.CompressedData)
+		if _, err := w.Write(bitmap.CompressedData); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -326,13 +369,19 @@ func (c *Converter) writeAudio(w io.Writer) error {
 
 	// Write audio info table (length, offset)
 	for _, audio := range c.audio {
-		binary.Write(w, binary.LittleEndian, audio.Length)
-		binary.Write(w, binary.LittleEndian, uint32(audio.Offset))
+		if err := binary.Write(w, binary.LittleEndian, audio.Length); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.LittleEndian, uint32(audio.Offset)); err != nil {
+			return err
+		}
 	}
 
 	// Write actual audio data
 	for _, audio := range c.audio {
-		w.Write(audio.CompressedData)
+		if _, err := w.Write(audio.CompressedData); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -383,12 +432,4 @@ func (c *Converter) flattenNodes(root *Node) {
 		}
 	}
 	flatten(root)
-}
-
-// Helper to convert string to null-terminated for compatibility
-func nullTerminate(s string) string {
-	if strings.HasSuffix(s, "\x00") {
-		return s
-	}
-	return s + "\x00"
 }

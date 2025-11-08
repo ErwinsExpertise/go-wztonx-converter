@@ -55,8 +55,8 @@ func (m *WZFile) debug(args ...interface{}) {
 	}
 }
 
-func (m *WZFile) Close() {
-	m.filemap.Unmap()
+func (m *WZFile) Close() error {
+	return m.filemap.Unmap()
 }
 
 func (m *WZFile) Parse() {
@@ -119,7 +119,6 @@ func (m *WZFile) isParsableWithVersion() (result *WZDirectory) {
 	defer func() {
 		if r := recover(); r != nil {
 			m.debug("Its not this version, reason: ", r)
-			panic(r)
 			result = nil
 		}
 	}()
@@ -143,25 +142,24 @@ func Fetch(node interface{}, elem string) interface{} {
 	case *WZVariant:
 		variant := node.(*WZVariant)
 		if variant.Type != 9 {
-			val := variant.Value
-			switch val.(type) {
+			switch val := variant.Value.(type) {
 			case int16:
-				node = val.(int16)
+				node = val
 
 			case int32:
-				node = val.(int32)
+				node = val
 
 			case int64:
-				node = val.(int64)
+				node = val
 
 			case float32:
-				node = val.(float32)
+				node = val
 
 			case float64:
-				node = val.(float64)
+				node = val
 
 			case string:
-				node = val.(string)
+				node = val
 			default:
 				println("WARN: Could not unpack variant with type ", variant.Type)
 			}
@@ -173,39 +171,36 @@ func Fetch(node interface{}, elem string) interface{} {
 
 func GetChildNodes(node interface{}) map[string]interface{} {
 	elements := make(map[string]interface{})
-	switch node.(type) {
+	switch n := node.(type) {
 	case *WZDirectory:
-		for name, elem := range node.(*WZDirectory).Directories {
+		for name, elem := range n.Directories {
 			elements[name] = elem
 		}
-		for name, elem := range node.(*WZDirectory).Images {
+		for name, elem := range n.Images {
 			elements[name] = elem
 		}
 	case WZProperty:
-		for name, elem := range node.(WZProperty) {
+		for name, elem := range n {
 			elements[name] = elem
 		}
 	case *WZImage:
-		img := node.(*WZImage)
-		img.StartParse()
-		for name, elem := range img.Properties {
+		n.StartParse()
+		for name, elem := range n.Properties {
 			elements[name] = elem
 		}
 	case *WZCanvas:
-		for name, elem := range node.(*WZCanvas).Properties {
+		for name, elem := range n.Properties {
 			elements[name] = elem
 		}
 	case *WZVariant:
-		variant := node.(*WZVariant)
-		elements = GetChildNodes(variant.Value)
+		elements = GetChildNodes(n.Value)
 
 	case *WZVector:
-		obj := node.(*WZVector)
-		elements["X"] = obj.X
-		elements["Y"] = obj.Y
+		elements["X"] = n.X
+		elements["Y"] = n.Y
 
 	case []interface{}:
-		for idx, elem := range node.([]interface{}) {
+		for idx, elem := range n {
 			elements[strconv.Itoa(idx)] = elem
 		}
 	default:
