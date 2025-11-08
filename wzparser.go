@@ -236,5 +236,3 @@ func (c *Converter) traverseWZSound(sound *wz.WZSoundDX8, parentNode *Node) {
 		Length: length,
 	}
 }
-
-

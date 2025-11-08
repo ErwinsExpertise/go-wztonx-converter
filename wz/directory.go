@@ -69,8 +69,9 @@ func (m *WZDirectory) Parse(file *WZFileBlob, offset int64) {
 			panic(fmt.Sprint("Unknown type in directory? ", elementType))
 		}
 
-		/*size := */ file.readWZInt() // Blob size
-		file.readWZInt()              // Checksum?
+		/*size := */
+		file.readWZInt() // Blob size
+		file.readWZInt() // Checksum?
 		dataOffset := int64(file.readWZOffset())
 		curpos := file.pos()
 
