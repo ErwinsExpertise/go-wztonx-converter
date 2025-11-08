@@ -1,0 +1,127 @@
+# GoReleaser configuration for go-wztonx-converter
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    # Run tests before building
+    - go test ./...
+    - go mod tidy
+
+builds:
+  - id: wztonx-converter
+    binary: wztonx-converter
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+    ignore:
+      # Windows on ARM is not commonly used
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    flags:
+      - -trimpath
+
+archives:
+  - id: wztonx-converter-archive
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - USAGE.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+  groups:
+    - title: 'New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance Improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 'Documentation Updates'
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: 'Other Changes'
+      order: 999
+
+release:
+  github:
+    owner: ErwinsExpertise
+    name: go-wztonx-converter
+  draft: false
+  prerelease: auto
+  mode: append
+  header: |
+    ## WZ to NX Converter {{ .Tag }}
+    
+    A Go implementation of the NoLifeStory wztonx converter.
+    
+    ### Key Features
+    - Converts WZ files to NX format
+    - Preserves node order (does not sort)
+    - Supports multiple image formats
+    - LZ4/LZ4HC compression
+    - Cross-platform binaries
+    
+    ### Installation
+    
+    Download the appropriate binary for your platform below and make it executable.
+    
+  footer: |
+    ---
+    
+    **Full Changelog**: https://github.com/ErwinsExpertise/go-wztonx-converter/compare/{{ .PreviousTag }}...{{ .Tag }}
+    
+    For usage instructions, see [USAGE.md](https://github.com/ErwinsExpertise/go-wztonx-converter/blob/main/USAGE.md)
+
+# Announcements
+announce:
+  skip: true

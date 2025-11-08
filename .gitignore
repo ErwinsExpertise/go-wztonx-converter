@@ -8,6 +8,11 @@
 *.so
 *.dylib
 
+# Binary output
+go-wztonx-converter
+wztonx-converter
+wztonx-*
+
 # Test binary, built with `go test -c`
 *.test
 

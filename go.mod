@@ -1,0 +1,11 @@
+module github.com/ErwinsExpertise/go-wztonx-converter
+
+go 1.21
+
+require (
+	github.com/edsrzf/mmap-go v1.2.0
+	github.com/goinggo/workpool v0.0.0-20160208222607-a68376913c9b
+	github.com/pierrec/lz4/v4 v4.1.22
+)
+
+require golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
