@@ -52,15 +52,19 @@ type Node struct {
 
 // BitmapData stores bitmap information
 type BitmapData struct {
-	Width  uint16
-	Height uint16
-	Data   []byte
+	Width          uint16
+	Height         uint16
+	Data           []byte
+	CompressedData []byte
+	Offset         uint64
 }
 
 // AudioData stores audio information
 type AudioData struct {
-	Length uint32
-	Data   []byte
+	Length         uint32
+	Data           []byte
+	CompressedData []byte
+	Offset         uint64
 }
 
 // NewConverter creates a new converter instance
@@ -266,31 +270,71 @@ func (c *Converter) writeStrings(w io.Writer) error {
 
 // writeBitmaps writes bitmap data
 func (c *Converter) writeBitmaps(w io.Writer) error {
-	// Write bitmap offset table
+	// Calculate offsets first
+	currentOffset := uint64(0)
+	for i := range c.bitmaps {
+		c.bitmaps[i].Offset = currentOffset
+
+		// Compress bitmap data if not already compressed
+		if len(c.bitmaps[i].CompressedData) == 0 && len(c.bitmaps[i].Data) > 0 {
+			compressed, err := c.compressData(c.bitmaps[i].Data)
+			if err != nil {
+				return fmt.Errorf("compressing bitmap %d: %w", i, err)
+			}
+			c.bitmaps[i].CompressedData = compressed
+		}
+
+		currentOffset += uint64(len(c.bitmaps[i].CompressedData)) + 4 // 4 bytes for size
+	}
+
+	// Write bitmap info table (width, height, offset)
 	for _, bitmap := range c.bitmaps {
 		binary.Write(w, binary.LittleEndian, bitmap.Width)
 		binary.Write(w, binary.LittleEndian, bitmap.Height)
-		// Write offset to actual data (to be implemented with LZ4)
-		binary.Write(w, binary.LittleEndian, uint32(0)) // placeholder
+		binary.Write(w, binary.LittleEndian, uint32(bitmap.Offset))
 	}
 
-	// Write actual bitmap data (LZ4 compressed)
-	// TODO: Implement LZ4 compression for bitmap data
-	w.Write(c.bitmapData.Bytes())
+	// Write actual compressed bitmap data
+	for _, bitmap := range c.bitmaps {
+		// Write size of compressed data
+		binary.Write(w, binary.LittleEndian, uint32(len(bitmap.CompressedData)))
+		// Write compressed data
+		w.Write(bitmap.CompressedData)
+	}
+
 	return nil
 }
 
 // writeAudio writes audio data
 func (c *Converter) writeAudio(w io.Writer) error {
-	// Write audio offset table
+	// Calculate offsets first
+	currentOffset := uint64(0)
+	for i := range c.audio {
+		c.audio[i].Offset = currentOffset
+
+		// Audio data is typically already in a compressed format (MP3, etc.)
+		// So we might not need to compress it again, but for consistency with C++ version,
+		// we should still apply LZ4 if specified
+		if len(c.audio[i].CompressedData) == 0 && len(c.audio[i].Data) > 0 {
+			// For audio, we typically don't compress further as it's already compressed
+			// But matching C++ behavior
+			c.audio[i].CompressedData = c.audio[i].Data
+		}
+
+		currentOffset += uint64(len(c.audio[i].CompressedData))
+	}
+
+	// Write audio info table (length, offset)
 	for _, audio := range c.audio {
 		binary.Write(w, binary.LittleEndian, audio.Length)
-		// Write offset to actual data
-		binary.Write(w, binary.LittleEndian, uint32(0)) // placeholder
+		binary.Write(w, binary.LittleEndian, uint32(audio.Offset))
 	}
 
 	// Write actual audio data
-	w.Write(c.audioData.Bytes())
+	for _, audio := range c.audio {
+		w.Write(audio.CompressedData)
+	}
+
 	return nil
 }
 
