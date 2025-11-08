@@ -197,3 +197,84 @@ func TestScaleImageNoScale(t *testing.T) {
 		}
 	}
 }
+
+func TestParallelBitmapCompression(t *testing.T) {
+	converter := NewConverter("test.wz", "test.nx", true, false)
+
+	// Create test bitmap data
+	testData := make([]byte, 1000)
+	for i := range testData {
+		testData[i] = byte(i % 256)
+	}
+
+	// Add multiple bitmaps
+	for i := 0; i < 10; i++ {
+		bitmap := BitmapData{
+			Width:  10,
+			Height: 10,
+			Data:   testData,
+		}
+		converter.bitmaps = append(converter.bitmaps, bitmap)
+	}
+
+	// Compress in parallel
+	err := converter.compressBitmapsParallel()
+	if err != nil {
+		t.Errorf("Parallel bitmap compression failed: %v", err)
+	}
+
+	// Verify all bitmaps were compressed
+	for i, bitmap := range converter.bitmaps {
+		if len(bitmap.CompressedData) == 0 {
+			t.Errorf("Bitmap %d was not compressed", i)
+		}
+	}
+}
+
+func TestParallelCompressionWithEmptyBitmaps(t *testing.T) {
+	converter := NewConverter("test.wz", "test.nx", true, false)
+
+	// Add bitmaps with no data
+	for i := 0; i < 5; i++ {
+		bitmap := BitmapData{
+			Width:  10,
+			Height: 10,
+			Data:   []byte{},
+		}
+		converter.bitmaps = append(converter.bitmaps, bitmap)
+	}
+
+	// Should not fail with empty bitmaps
+	err := converter.compressBitmapsParallel()
+	if err != nil {
+		t.Errorf("Parallel compression should handle empty bitmaps: %v", err)
+	}
+}
+
+func TestParallelCompressionWithAlreadyCompressed(t *testing.T) {
+	converter := NewConverter("test.wz", "test.nx", true, false)
+
+	// Add already compressed bitmaps
+	for i := 0; i < 5; i++ {
+		bitmap := BitmapData{
+			Width:          10,
+			Height:         10,
+			Data:           []byte{1, 2, 3},
+			CompressedData: []byte{4, 5, 6}, // Already compressed
+		}
+		converter.bitmaps = append(converter.bitmaps, bitmap)
+	}
+
+	// Should skip already compressed bitmaps
+	err := converter.compressBitmapsParallel()
+	if err != nil {
+		t.Errorf("Parallel compression failed: %v", err)
+	}
+
+	// Verify compressed data was not changed
+	for i, bitmap := range converter.bitmaps {
+		if len(bitmap.CompressedData) != 3 || bitmap.CompressedData[0] != 4 {
+			t.Errorf("Bitmap %d compressed data was modified", i)
+		}
+	}
+}
