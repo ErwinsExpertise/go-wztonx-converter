@@ -373,8 +373,9 @@ func TestParallelCompressionWithAlreadyCompressed(t *testing.T) {
 
 // Helper for testing - a seekable buffer
 type seekableBuffer struct {
-	buf []byte
-	pos int64
+	buf    []byte
+	pos    int64
+	maxPos int64 // Track maximum position written
 }
 
 func newSeekableBuffer() *seekableBuffer {
@@ -392,6 +393,12 @@ func (s *seekableBuffer) Write(p []byte) (n int, err error) {
 	
 	n = copy(s.buf[s.pos:], p)
 	s.pos += int64(n)
+	
+	// Track max position
+	if s.pos > s.maxPos {
+		s.maxPos = s.pos
+	}
+	
 	return n, nil
 }
 
@@ -425,7 +432,7 @@ func (s *seekableBuffer) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (s *seekableBuffer) Bytes() []byte {
-	return s.buf[:s.pos]
+	return s.buf[:s.maxPos]
 }
 
 // TestNXFileFormat validates the NX file format structure
@@ -585,4 +592,224 @@ func TestNXFileFormat(t *testing.T) {
 	t.Logf("  String count: %d, offset table at %d", stringCount, stringOffsetTableOffset)
 	t.Logf("  Bitmap count: %d, offset table at %d", bitmapCount, bitmapOffsetTableOffset)
 	t.Logf("  Audio count: %d, offset table at %d", audioCount, audioOffsetTableOffset)
+}
+
+// TestNXFileFormatReading tests that we can read back what we write
+func TestNXFileFormatReading(t *testing.T) {
+converter := NewConverter("test.wz", "test.nx", true, false)
+
+// Add test strings
+converter.addString("")
+converter.addString("testStr1")
+converter.addString("testStr2")
+
+// Create simple node tree
+root := &Node{
+Name:     "",
+Children: []*Node{},
+Type:     NodeTypeNone,
+}
+
+stringNode := &Node{
+Name:     "testStr1",
+Children: []*Node{},
+Type:     NodeTypeString,
+Data:     "testStr2",
+}
+root.Children = append(root.Children, stringNode)
+
+// Add bitmap
+bitmap := BitmapData{
+Width:          5,
+Height:         10,
+Data:           make([]byte, 200),
+CompressedData: []byte{1, 2, 3},
+}
+converter.bitmaps = append(converter.bitmaps, bitmap)
+
+bitmapNode := &Node{
+Name:     "bitmap",
+Children: []*Node{},
+Type:     NodeTypeBitmap,
+Data: BitmapNodeData{
+ID:     0,
+Width:  5,
+Height: 10,
+},
+}
+root.Children = append(root.Children, bitmapNode)
+
+// Add audio
+audioData := []byte{0xAA, 0xBB, 0xCC}
+audio := AudioData{
+Length:         3,
+Data:           audioData,
+CompressedData: audioData,
+}
+converter.audio = append(converter.audio, audio)
+
+audioNode := &Node{
+Name:     "audio",
+Children: []*Node{},
+Type:     NodeTypeAudio,
+Data: AudioNodeData{
+ID:     0,
+Length: 3,
+},
+}
+root.Children = append(root.Children, audioNode)
+
+converter.flattenNodes(root)
+
+// Write to buffer
+buf := newSeekableBuffer()
+err := converter.writeNXData(buf)
+if err != nil {
+t.Fatalf("Failed to write NX data: %v", err)
+}
+
+// Now read back like gonx does
+reader := bytes.NewReader(buf.Bytes())
+
+// Read header
+var header struct {
+Magic                   [4]byte
+NodeCount               uint32
+NodeBlockOffset         int64
+StringCount             uint32
+StringOffsetTableOffset int64
+BitmapCount             uint32
+BitmapOffsetTableOffset int64
+AudioCount              uint32
+AudioOffsetTableOffset  int64
+}
+
+err = binary.Read(reader, binary.LittleEndian, &header)
+if err != nil {
+t.Fatalf("Failed to read header: %v", err)
+}
+
+// Validate magic
+// Validate magic
+if string(header.Magic[:]) != "PKG4" {
+t.Errorf("Invalid magic: %s", string(header.Magic[:]))
+}
+
+t.Logf("Header values:")
+t.Logf("  String count: %d, offset table offset: %d", header.StringCount, header.StringOffsetTableOffset)
+t.Logf("  Buffer size: %d", len(buf.Bytes()))
+t.Logf("  Converter strings: %d", len(converter.strings))
+if string(header.Magic[:]) != "PKG4" {
+t.Errorf("Invalid magic: %s", string(header.Magic[:]))
+}
+
+// Read string offset table
+_, err = reader.Seek(header.StringOffsetTableOffset, 0)
+if err != nil {
+t.Fatalf("Failed to seek to string offset table: %v", err)
+}
+
+stringOffsets := make([]int64, header.StringCount)
+err = binary.Read(reader, binary.LittleEndian, &stringOffsets)
+if err != nil {
+t.Fatalf("Failed to read string offsets: %v", err)
+}
+
+// Read strings using offset table
+for i, offset := range stringOffsets {
+_, err = reader.Seek(offset, 0)
+if err != nil {
+t.Fatalf("Failed to seek to string %d: %v", i, err)
+}
+
+var length uint16
+err = binary.Read(reader, binary.LittleEndian, &length)
+if err != nil {
+t.Fatalf("Failed to read string length: %v", err)
+}
+
+strBytes := make([]byte, length)
+_, err = reader.Read(strBytes)
+if err != nil {
+t.Fatalf("Failed to read string data: %v", err)
+}
+
+t.Logf("String %d: %q", i, string(strBytes))
+}
+
+// Read bitmap offset table
+_, err = reader.Seek(header.BitmapOffsetTableOffset, 0)
+if err != nil {
+t.Fatalf("Failed to seek to bitmap offset table: %v", err)
+}
+
+bitmapOffsets := make([]int64, header.BitmapCount)
+err = binary.Read(reader, binary.LittleEndian, &bitmapOffsets)
+if err != nil {
+t.Fatalf("Failed to read bitmap offsets: %v", err)
+}
+
+// Read bitmaps using offset table
+for i, offset := range bitmapOffsets {
+_, err = reader.Seek(offset, 0)
+if err != nil {
+t.Fatalf("Failed to seek to bitmap %d: %v", i, err)
+}
+
+var width, height uint16
+var size uint32
+binary.Read(reader, binary.LittleEndian, &width)
+binary.Read(reader, binary.LittleEndian, &height)
+binary.Read(reader, binary.LittleEndian, &size)
+
+bitmapData := make([]byte, size)
+_, err = reader.Read(bitmapData)
+if err != nil {
+t.Fatalf("Failed to read bitmap data: %v", err)
+}
+
+t.Logf("Bitmap %d: %dx%d, %d bytes", i, width, height, size)
+
+// Validate bitmap data
+if width != 5 || height != 10 {
+t.Errorf("Bitmap dimensions mismatch: got %dx%d, want 5x10", width, height)
+}
+}
+
+// Read audio offset table
+_, err = reader.Seek(header.AudioOffsetTableOffset, 0)
+if err != nil {
+t.Fatalf("Failed to seek to audio offset table: %v", err)
+}
+
+audioOffsets := make([]int64, header.AudioCount)
+err = binary.Read(reader, binary.LittleEndian, &audioOffsets)
+if err != nil {
+t.Fatalf("Failed to read audio offsets: %v", err)
+}
+
+// Read audio using offset table
+// Note: Audio length comes from the node data, not the audio section
+for i, offset := range audioOffsets {
+_, err = reader.Seek(offset, 0)
+if err != nil {
+t.Fatalf("Failed to seek to audio %d: %v", i, err)
+}
+
+// For this test, we know the length is 3
+audioBytes := make([]byte, 3)
+_, err = reader.Read(audioBytes)
+if err != nil {
+t.Fatalf("Failed to read audio data: %v", err)
+}
+
+t.Logf("Audio %d: %d bytes, data=%v", i, len(audioBytes), audioBytes)
+
+// Validate audio data
+if !bytes.Equal(audioBytes, []byte{0xAA, 0xBB, 0xCC}) {
+t.Errorf("Audio data mismatch: got %v, want [0xAA, 0xBB, 0xCC]", audioBytes)
+}
+}
+
+t.Log("Successfully read back all data from NX file")
 }
