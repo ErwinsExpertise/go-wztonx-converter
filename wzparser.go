@@ -175,16 +175,22 @@ func (c *Converter) traverseWZCanvas(canvas *wz.WZCanvas, parentNode *Node) {
 	// If in client mode, handle bitmap data
 	if c.client && canvas.Width > 0 && canvas.Height > 0 {
 		bitmapID := uint32(len(c.bitmaps))
+		width := uint16(canvas.Width)
+		height := uint16(canvas.Height)
 
 		bitmap := BitmapData{
-			Width:  uint16(canvas.Width),
-			Height: uint16(canvas.Height),
+			Width:  width,
+			Height: height,
 			Data:   c.extractCanvasData(canvas),
 		}
 		c.bitmaps = append(c.bitmaps, bitmap)
 
 		parentNode.Type = NodeTypeBitmap
-		parentNode.Data = bitmapID
+		parentNode.Data = BitmapNodeData{
+			ID:     bitmapID,
+			Width:  width,
+			Height: height,
+		}
 	} else {
 		parentNode.Type = NodeTypeNone
 	}
@@ -216,15 +222,19 @@ func (c *Converter) traverseWZSound(sound *wz.WZSoundDX8, parentNode *Node) {
 
 	// Use exported SoundData field directly
 	soundData := sound.SoundData
+	length := uint32(len(soundData))
 
 	audio := AudioData{
-		Length: uint32(len(soundData)),
+		Length: length,
 		Data:   soundData,
 	}
 	c.audio = append(c.audio, audio)
 
 	parentNode.Type = NodeTypeAudio
-	parentNode.Data = audioID
+	parentNode.Data = AudioNodeData{
+		ID:     audioID,
+		Length: length,
+	}
 }
 
 
