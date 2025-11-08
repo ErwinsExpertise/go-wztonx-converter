@@ -1,6 +1,6 @@
 module github.com/ErwinsExpertise/go-wztonx-converter
 
-go 1.24.9
+go 1.21
 
 require (
 	github.com/edsrzf/mmap-go v1.2.0
