@@ -72,6 +72,24 @@ go install github.com/ErwinsExpertise/go-wztonx-converter@latest
 - `--client`, `-c`: Client mode - processes audio and bitmap data
 - `--server`, `-s`: Server mode - skips audio and bitmap data
 - `--lz4hc`, `-h`: Use LZ4 high compression (slower but smaller files)
+- `--cpuprofile <file>`: Write CPU profile to file (for performance analysis)
+- `--memprofile <file>`: Write memory profile to file (for memory analysis)
+
+### Performance Profiling
+
+To profile the converter's performance, use the profiling flags:
+
+```bash
+# CPU profiling
+./go-wztonx-converter --cpuprofile cpu.prof --client file.wz
+
+# Memory profiling
+./go-wztonx-converter --memprofile mem.prof --client file.wz
+
+# Analyze profiles with pprof
+go tool pprof cpu.prof
+go tool pprof mem.prof
+```
 
 ## NX File Format
 
@@ -94,6 +112,21 @@ The NX file format consists of:
 - Type 6: Audio (sound data)
 
 ## Technical Details
+
+### Performance Optimizations
+
+The converter includes several performance optimizations:
+
+- **Parallel Bitmap Compression**: Bitmaps are compressed in parallel using up to 8 concurrent workers, significantly speeding up large file conversions
+- **Buffered I/O**: Uses 1MB buffered writing for improved disk I/O performance
+- **Progress Updates**: Shows detailed progress during conversion, including:
+  - Header writing status
+  - Node count and progress
+  - String table progress
+  - Bitmap compression progress
+  - Audio file progress
+
+This makes it easy to track conversion progress and identify if the process is stuck or just processing large amounts of data.
 
 ### Node Ordering
 

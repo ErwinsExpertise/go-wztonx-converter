@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 // NX file format constants
@@ -84,7 +86,7 @@ func (c *Converter) Convert() error {
 	}
 
 	fmt.Println("Done!")
-	fmt.Print("Creating output.....")
+	fmt.Println("Creating output.....")
 
 	// Write NX file
 	if err := c.writeNXFile(); err != nil {
@@ -105,33 +107,58 @@ func (c *Converter) writeNXFile() error {
 	}
 	defer file.Close()
 
-	return c.writeNXData(file)
+	// Use buffered writer for better performance
+	bufferedWriter := bufio.NewWriterSize(file, 1024*1024) // 1MB buffer
+	defer bufferedWriter.Flush()
+
+	return c.writeNXData(bufferedWriter)
 }
 
 // writeNXData writes the actual NX format data
 func (c *Converter) writeNXData(w io.Writer) error {
 	// Write header
+	fmt.Print("  Writing header...")
 	if err := c.writeHeader(w); err != nil {
 		return err
 	}
+	fmt.Println("Done!")
 
 	// Write nodes
+	fmt.Printf("  Writing %d nodes...", len(c.nodes))
 	if err := c.writeNodes(w); err != nil {
 		return err
 	}
+	fmt.Println("Done!")
 
 	// Write string table
+	fmt.Printf("  Writing %d strings...", len(c.strings))
 	if err := c.writeStrings(w); err != nil {
 		return err
 	}
+	fmt.Println("Done!")
 
 	// Write bitmaps and audio if in client mode
 	if c.client {
-		if err := c.writeBitmaps(w); err != nil {
-			return err
+		if len(c.bitmaps) > 0 {
+			fmt.Printf("  Compressing %d bitmaps...", len(c.bitmaps))
+			if err := c.compressBitmapsParallel(); err != nil {
+				return err
+			}
+			fmt.Println("Done!")
+
+			fmt.Print("  Writing bitmaps...")
+			if err := c.writeBitmaps(w); err != nil {
+				return err
+			}
+			fmt.Println("Done!")
 		}
-		if err := c.writeAudio(w); err != nil {
-			return err
+
+		if len(c.audio) > 0 {
+			fmt.Printf("  Writing %d audio files...", len(c.audio))
+			if err := c.writeAudio(w); err != nil {
+				return err
+			}
+			fmt.Println("Done!")
 		}
 	}
 
@@ -303,20 +330,10 @@ func (c *Converter) writeStrings(w io.Writer) error {
 
 // writeBitmaps writes bitmap data
 func (c *Converter) writeBitmaps(w io.Writer) error {
-	// Calculate offsets first
+	// Calculate offsets
 	currentOffset := uint64(0)
 	for i := range c.bitmaps {
 		c.bitmaps[i].Offset = currentOffset
-
-		// Compress bitmap data if not already compressed
-		if len(c.bitmaps[i].CompressedData) == 0 && len(c.bitmaps[i].Data) > 0 {
-			compressed, err := c.compressData(c.bitmaps[i].Data)
-			if err != nil {
-				return fmt.Errorf("compressing bitmap %d: %w", i, err)
-			}
-			c.bitmaps[i].CompressedData = compressed
-		}
-
 		currentOffset += uint64(len(c.bitmaps[i].CompressedData)) + 4 // 4 bytes for size
 	}
 
@@ -419,6 +436,58 @@ func (c *Converter) calculateStringTableSize() uint64 {
 func (c *Converter) calculateBitmapTableSize() uint64 {
 	// Each bitmap entry: 2 (width) + 2 (height) + 4 (offset) = 8 bytes
 	return uint64(len(c.bitmaps)) * 8
+}
+
+// compressBitmapsParallel compresses all bitmap data in parallel
+func (c *Converter) compressBitmapsParallel() error {
+	if len(c.bitmaps) == 0 {
+		return nil
+	}
+
+	// Create error channel and wait group
+	errChan := make(chan error, len(c.bitmaps))
+	var wg sync.WaitGroup
+
+	// Limit concurrent goroutines to avoid overwhelming the system
+	maxWorkers := 8
+	semaphore := make(chan struct{}, maxWorkers)
+
+	for i := range c.bitmaps {
+		// Skip if already compressed or no data
+		if len(c.bitmaps[i].CompressedData) > 0 || len(c.bitmaps[i].Data) == 0 {
+			continue
+		}
+
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// Compress the bitmap data
+			compressed, err := c.compressData(c.bitmaps[index].Data)
+			if err != nil {
+				errChan <- fmt.Errorf("compressing bitmap %d: %w", index, err)
+				return
+			}
+			c.bitmaps[index].CompressedData = compressed
+		}(i)
+	}
+
+	// Wait for all compressions to complete
+	wg.Wait()
+	close(errChan)
+
+	// Check for any errors
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // flattenNodes flattens the node tree into a list

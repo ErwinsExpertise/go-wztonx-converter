@@ -10,6 +10,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 	"time"
 )
@@ -33,7 +35,39 @@ func main() {
 	serverShort := flag.Bool("s", false, "Server mode (short)")
 	lz4hc := flag.Bool("lz4hc", false, "Use LZ4 high compression")
 	lz4hcShort := flag.Bool("h", false, "Use LZ4 high compression (short)")
+	cpuProfile := flag.String("cpuprofile", "", "Write CPU profile to file")
+	memProfile := flag.String("memprofile", "", "Write memory profile to file")
 	flag.Parse()
+
+	// CPU profiling
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			log.Fatal("Could not create CPU profile: ", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("Could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+		fmt.Printf("CPU profiling enabled, writing to %s\n", *cpuProfile)
+	}
+
+	// Memory profiling (defer to end of main)
+	if *memProfile != "" {
+		defer func() {
+			f, err := os.Create(*memProfile)
+			if err != nil {
+				log.Fatal("Could not create memory profile: ", err)
+			}
+			defer f.Close()
+			runtime.GC() // get up-to-date statistics
+			if err := pprof.WriteHeapProfile(f); err != nil {
+				log.Fatal("Could not write memory profile: ", err)
+			}
+			fmt.Printf("Memory profile written to %s\n", *memProfile)
+		}()
+	}
 
 	isClient := *client || *clientShort
 	isServer := *server || *serverShort
