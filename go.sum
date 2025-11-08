@@ -1,5 +1,3 @@
-github.com/diamondo25/go-wz v0.0.0-20160324091922-695d4b5b81ca h1:oRQ/cotman1OD7YOzw0tKnx+8zhSRrNP6Y4aqz19e8E=
-github.com/diamondo25/go-wz v0.0.0-20160324091922-695d4b5b81ca/go.mod h1:3CsgWaXVsGGIZETCC1XqfTzAD+axoYdC4b0FfSTapwQ=
 github.com/edsrzf/mmap-go v1.2.0 h1:hXLYlkbaPzt1SaQk+anYwKSRNhufIDCchSPkUD6dD84=
 github.com/edsrzf/mmap-go v1.2.0/go.mod h1:19H/e8pUPLicwkyNgOykDXkJ9F0MHE+Z52B8EIth78Q=
 github.com/goinggo/workpool v0.0.0-20160208222607-a68376913c9b h1:aGCNYEiu0TrmnefQVPs128ttJAQ2a29LRpTiVkxsndQ=

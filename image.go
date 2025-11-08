@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	wz "github.com/diamondo25/go-wz"
+	"github.com/ErwinsExpertise/go-wztonx-converter/wz"
 )
 
 // Color lookup tables from the C++ implementation

@@ -52,13 +52,11 @@
 
 1. **DXT Compression**: Currently, DXT3 and DXT5 compressed images produce empty bitmap data. This requires porting or integrating a DXT decompression library.
 
-2. **Unexported Fields**: Uses unsafe reflection to access unexported fields in go-wz library. A cleaner solution would be to fork go-wz and export necessary fields.
+2. **Memory Usage**: Large WZ files are fully loaded into memory. Streaming processing would reduce memory footprint.
 
-3. **Memory Usage**: Large WZ files are fully loaded into memory. Streaming processing would reduce memory footprint.
+3. **Format2 Scaling**: The C++ version has special handling for format2 == 4 (16x scaling). This is not implemented.
 
-4. **Format2 Scaling**: The C++ version has special handling for format2 == 4 (16x scaling). This is not implemented.
-
-5. **Encryption Keys**: Currently relies on go-wz's key detection. Direct key selection is not implemented.
+4. **Encryption Keys**: Currently relies on go-wz's key detection. Direct key selection is not implemented.
 
 ## Dependencies to Consider
 

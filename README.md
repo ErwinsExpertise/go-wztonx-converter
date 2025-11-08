@@ -4,7 +4,7 @@ A Go implementation of the WZ to NX file converter, based on [NoLifeStory's wzto
 
 ## Overview
 
-This tool converts MapleStory WZ files into the more efficient NX format. It uses the [go-wz](https://github.com/diamondo25/go-wz) library for reading WZ files.
+This tool converts MapleStory WZ files into the more efficient NX format. It includes a forked version of the [go-wz](https://github.com/diamondo25/go-wz) library for reading WZ files, with necessary fields exported for direct access.
 
 ## Key Differences from the C++ Version
 
@@ -95,8 +95,10 @@ The go-wz library uses memory-mapped I/O for efficient WZ file reading.
 
 ## Dependencies
 
-- [github.com/diamondo25/go-wz](https://github.com/diamondo25/go-wz) - WZ file parsing
+- Forked `wz` package (based on [github.com/diamondo25/go-wz](https://github.com/diamondo25/go-wz)) - WZ file parsing with exported fields for cleaner access
 - [github.com/pierrec/lz4/v4](https://github.com/pierrec/lz4) - LZ4 compression
+- [github.com/edsrzf/mmap-go](https://github.com/edsrzf/mmap-go) - Memory-mapped file I/O
+- [github.com/goinggo/workpool](https://github.com/goinggo/workpool) - Concurrent processing
 
 ## License
 

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	wz "github.com/diamondo25/go-wz"
+	"github.com/ErwinsExpertise/go-wztonx-converter/wz"
 )
 
 // parseWZFile reads and parses the WZ file using the go-wz library
@@ -192,8 +192,8 @@ func (c *Converter) traverseWZCanvas(canvas *wz.WZCanvas, parentNode *Node) {
 
 // extractCanvasData extracts and decompresses canvas pixel data
 func (c *Converter) extractCanvasData(canvas *wz.WZCanvas) []byte {
-	// Get the raw canvas data using reflection
-	rawData := getCanvasDataViaReflection(canvas)
+	// Get the canvas data using exported Data field
+	rawData := canvas.Data
 
 	if len(rawData) == 0 {
 		return nil
@@ -214,8 +214,8 @@ func (c *Converter) extractCanvasData(canvas *wz.WZCanvas) []byte {
 func (c *Converter) traverseWZSound(sound *wz.WZSoundDX8, parentNode *Node) {
 	audioID := uint32(len(c.audio))
 
-	// Use reflection to access unexported soundData field
-	soundData := getSoundDataViaReflection(sound)
+	// Use exported SoundData field directly
+	soundData := sound.SoundData
 
 	audio := AudioData{
 		Length: uint32(len(soundData)),
