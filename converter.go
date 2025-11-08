@@ -504,8 +504,6 @@ func (c *Converter) flattenNodes(root *Node) {
 		c.nodes = append(c.nodes, node)
 		
 		// Add all children to the queue so they get added contiguously
-		for _, child := range node.Children {
-			queue = append(queue, child)
-		}
+		queue = append(queue, node.Children...)
 	}
 }
