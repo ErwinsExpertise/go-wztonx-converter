@@ -14,8 +14,16 @@ import (
 	"time"
 )
 
+// Version information (set by GoReleaser)
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	fmt.Println("NoLifeWzToNx - Go Edition")
+	fmt.Printf("Version: %s (commit: %s, built: %s)\n", version, commit, date)
 	fmt.Println("Converts WZ files into NX files")
 	fmt.Println()
 

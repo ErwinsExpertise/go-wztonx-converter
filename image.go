@@ -61,7 +61,8 @@ func (p ARGB4444) B() uint8 { return uint8(p.data & 0xF) }
 func processCanvasData(canvas *wz.WZCanvas, data []byte) ([]byte, error) {
 	width := int(canvas.Width)
 	height := int(canvas.Height)
-	format := canvas.Format
+	format1 := canvas.Format1
+	format2 := canvas.Format2
 
 	if width <= 0 || height <= 0 {
 		return nil, fmt.Errorf("invalid canvas dimensions: %dx%d", width, height)
@@ -70,30 +71,46 @@ func processCanvasData(canvas *wz.WZCanvas, data []byte) ([]byte, error) {
 	pixels := width * height
 	output := make([]byte, pixels*4) // RGBA
 
-	switch format {
+	// Process based on format1
+	var processed []byte
+	var err error
+
+	switch format1 {
 	case 1: // ARGB4444
-		return convertARGB4444(data, width, height)
+		processed, err = convertARGB4444(data, width, height)
 
 	case 2: // ARGB8888
-		return convertARGB8888(data, width, height)
+		processed, err = convertARGB8888(data, width, height)
 
 	case 513: // RGB565
-		return convertRGB565(data, width, height)
+		processed, err = convertRGB565(data, width, height)
 
 	case 1026: // DXT3
 		// DXT3 decompression would go here
 		// For now, return empty data or the raw data
-		return make([]byte, pixels*4), nil
+		processed = make([]byte, pixels*4)
 
 	case 2050: // DXT5
 		// DXT5 decompression would go here
 		// For now, return empty data or the raw data
-		return make([]byte, pixels*4), nil
+		processed = make([]byte, pixels*4)
 
 	default:
 		// Unknown format, return empty RGBA
-		return output, nil
+		processed = output
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply format2 scaling if needed
+	if format2 == 4 {
+		// Scale by 16x
+		processed = scaleImage(processed, width, height, 16)
+	}
+
+	return processed, nil
 }
 
 // convertARGB4444 converts ARGB4444 format to RGBA
@@ -151,4 +168,38 @@ func decompressWZData(compressed []byte) ([]byte, error) {
 	// Use compress/zlib or compress/flate
 	// For now, assume data is already decompressed by go-wz
 	return compressed, nil
+}
+
+// scaleImage scales an RGBA image by the given factor
+// This is used when format2 == 4 to scale by 16x
+func scaleImage(data []byte, width, height, scale int) []byte {
+	if scale <= 1 || len(data) == 0 {
+		return data
+	}
+
+	newWidth := width * scale
+	newHeight := height * scale
+	output := make([]byte, newWidth*newHeight*4)
+
+	// Nearest neighbor scaling
+	for y := 0; y < newHeight; y++ {
+		for x := 0; x < newWidth; x++ {
+			// Map to source pixel
+			srcX := x / scale
+			srcY := y / scale
+
+			// Copy pixel data
+			srcIdx := (srcY*width + srcX) * 4
+			dstIdx := (y*newWidth + x) * 4
+
+			if srcIdx+3 < len(data) && dstIdx+3 < len(output) {
+				output[dstIdx+0] = data[srcIdx+0] // R
+				output[dstIdx+1] = data[srcIdx+1] // G
+				output[dstIdx+2] = data[srcIdx+2] // B
+				output[dstIdx+3] = data[srcIdx+3] // A
+			}
+		}
+	}
+
+	return output
 }

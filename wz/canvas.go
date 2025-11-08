@@ -6,6 +6,8 @@ type WZCanvas struct {
 	Width    int32
 	Height   int32
 	Format   int32
+	Format1  int32 // Lower part of format
+	Format2  int32 // Upper part of format
 	MagLevel uint8
 
 	Data []byte
@@ -38,6 +40,9 @@ func (m *WZCanvas) Parse(file *WZFileBlob, offset int64) {
 	}
 
 	m.Format = file.readWZInt()
+	// Split format into format1 and format2
+	m.Format1 = m.Format & 0xFFFF
+	m.Format2 = (m.Format >> 16) & 0xFFFF
 	m.MagLevel = file.readByte()
 
 	if file.readInt32() != 0 {

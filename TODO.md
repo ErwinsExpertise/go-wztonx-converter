@@ -9,7 +9,7 @@
     - Port libsquish to Go
     - Use CGo bindings to libsquish
     - Implement DXT decompression in pure Go
-- [ ] Handle Format2 scaling (format2 == 4 means scale by 16)
+- [x] Handle Format2 scaling (format2 == 4 means scale by 16) - **IMPLEMENTED**
 
 ## Medium Priority
 
@@ -54,9 +54,7 @@
 
 2. **Memory Usage**: Large WZ files are fully loaded into memory. Streaming processing would reduce memory footprint.
 
-3. **Format2 Scaling**: The C++ version has special handling for format2 == 4 (16x scaling). This is not implemented.
-
-4. **Encryption Keys**: Currently relies on go-wz's key detection. Direct key selection is not implemented.
+3. **Encryption Keys**: Currently relies on go-wz's key detection. Direct key selection is not implemented.
 
 ## Dependencies to Consider
 

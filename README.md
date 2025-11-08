@@ -14,16 +14,32 @@ This tool converts MapleStory WZ files into the more efficient NX format. It inc
 
 ## Installation
 
+### Pre-built Binaries
+
+Download the latest release for your platform from the [Releases page](https://github.com/ErwinsExpertise/go-wztonx-converter/releases).
+
+Extract and run:
 ```bash
-go get github.com/ErwinsExpertise/go-wztonx-converter
+# Linux/macOS
+tar -xzf wztonx-converter_*.tar.gz
+./wztonx-converter --help
+
+# Windows
+# Extract the .zip file and run wztonx-converter.exe
 ```
 
-Or build from source:
+### From Source
 
 ```bash
 git clone https://github.com/ErwinsExpertise/go-wztonx-converter
 cd go-wztonx-converter
 go build
+```
+
+### Go Install
+
+```bash
+go install github.com/ErwinsExpertise/go-wztonx-converter@latest
 ```
 
 ## Usage

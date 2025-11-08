@@ -152,3 +152,48 @@ func TestARGB8888Conversion(t *testing.T) {
 			output[0], output[1], output[2], output[3])
 	}
 }
+
+func TestScaleImage(t *testing.T) {
+	// Test scaling a 2x2 image by 2x
+	data := []byte{
+		// Pixel 0,0: Red
+		255, 0, 0, 255,
+		// Pixel 1,0: Green
+		0, 255, 0, 255,
+		// Pixel 0,1: Blue
+		0, 0, 255, 255,
+		// Pixel 1,1: White
+		255, 255, 255, 255,
+	}
+
+	scaled := scaleImage(data, 2, 2, 2)
+
+	// Should now be 4x4 = 16 pixels = 64 bytes
+	expectedSize := 4 * 4 * 4
+	if len(scaled) != expectedSize {
+		t.Errorf("Expected %d bytes for scaled image, got %d", expectedSize, len(scaled))
+	}
+
+	// Check that first pixel is still red (top-left corner)
+	if scaled[0] != 255 || scaled[1] != 0 || scaled[2] != 0 || scaled[3] != 255 {
+		t.Errorf("First pixel not red: R=%d, G=%d, B=%d, A=%d",
+			scaled[0], scaled[1], scaled[2], scaled[3])
+	}
+}
+
+func TestScaleImageNoScale(t *testing.T) {
+	// Test that scale factor of 1 returns original data
+	data := []byte{255, 0, 0, 255}
+	scaled := scaleImage(data, 1, 1, 1)
+
+	if len(scaled) != len(data) {
+		t.Errorf("Scale factor 1 should not change size")
+	}
+
+	for i := range data {
+		if scaled[i] != data[i] {
+			t.Errorf("Scale factor 1 should return identical data")
+			break
+		}
+	}
+}
