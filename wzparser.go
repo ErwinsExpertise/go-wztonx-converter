@@ -193,7 +193,21 @@ func (c *Converter) traverseWZCanvas(canvas *wz.WZCanvas, parentNode *Node) {
 // extractCanvasData extracts and decompresses canvas pixel data
 func (c *Converter) extractCanvasData(canvas *wz.WZCanvas) []byte {
 	// Get the raw canvas data using reflection
-	return getCanvasDataViaReflection(canvas)
+	rawData := getCanvasDataViaReflection(canvas)
+
+	if len(rawData) == 0 {
+		return nil
+	}
+
+	// Process the canvas data based on its format
+	processedData, err := processCanvasData(canvas, rawData)
+	if err != nil {
+		// Log error but don't fail completely
+		fmt.Printf("Warning: Error processing canvas data: %v\n", err)
+		return nil
+	}
+
+	return processedData
 }
 
 // traverseWZSound processes a Sound object
