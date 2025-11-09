@@ -1,0 +1,31 @@
+# golangci-lint configuration
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  govet:
+    disable:
+      - shadow
+    enable-all: false
+
+issues:
+  # Exclude unused functions in the forked wz package (from original library)
+  exclude-rules:
+    - path: wz/
+      linters:
+        - unused
+      text: "func.*is unused"
+    # Exclude typecheck false positives (module resolution issue in golangci-lint)
+    - linters:
+        - typecheck
+      text: "(undefined:|previous case)"
