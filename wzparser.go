@@ -82,9 +82,7 @@ func (c *Converter) traverseWZDirectory(wzDir *wz.WZDirectory, parentNode *Node)
 		wg.Wait()
 
 		// Append nodes in order after parallel processing
-		for _, node := range imageNodes {
-			parentNode.Children = append(parentNode.Children, node)
-		}
+		parentNode.Children = append(parentNode.Children, imageNodes...)
 	}
 }
 

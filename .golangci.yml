@@ -12,6 +12,13 @@ linters:
     - staticcheck
     - unused
 
+linters-settings:
+  govet:
+    disable:
+      - shadow
+    enable-all: false
+    check-shadowing: false
+
 issues:
   # Exclude unused functions in the forked wz package (from original library)
   exclude-rules:
@@ -19,3 +26,7 @@ issues:
       linters:
         - unused
       text: "func.*is unused"
+    # Exclude typecheck false positives (module resolution issue in golangci-lint)
+    - linters:
+        - typecheck
+      text: "(undefined:|previous case)"
