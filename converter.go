@@ -142,12 +142,12 @@ func (c *Converter) writeNXData(w io.Writer) error {
 	fmt.Println("Done!")
 
 	// Write nodes
-	fmt.Printf("  Writing %d nodes...", len(c.nodes))
+	fmt.Printf("  Writing %d nodes...\n", len(c.nodes))
 	nodeOffset := uint64(52) // Header size
 	if err := c.writeNodes(w); err != nil {
 		return err
 	}
-	fmt.Println("Done!")
+	fmt.Println("  Done!")
 
 	// Write string data and offset table
 	fmt.Printf("  Writing %d strings...", len(c.strings))
@@ -254,7 +254,10 @@ func (c *Converter) writeNodes(w io.Writer) error {
 	// 2 bytes: type
 	// 8 bytes: data (type-dependent)
 
-	for _, node := range c.nodes {
+	totalNodes := len(c.nodes)
+	var lastPercent int = -1
+
+	for i, node := range c.nodes {
 		nameID := c.getStringID(node.Name)
 
 		// Calculate child info
@@ -262,9 +265,9 @@ func (c *Converter) writeNodes(w io.Writer) error {
 		var childCount uint16 = 0
 		if len(node.Children) > 0 {
 			// Find index of first child
-			for i, n := range c.nodes {
+			for j, n := range c.nodes {
 				if n == node.Children[0] {
-					firstChild = uint32(i)
+					firstChild = uint32(j)
 					break
 				}
 			}
@@ -288,8 +291,16 @@ func (c *Converter) writeNodes(w io.Writer) error {
 		if err := c.writeNodeData(w, node); err != nil {
 			return err
 		}
+
+		// Update progress
+		percent := (i + 1) * 100 / totalNodes
+		if percent != lastPercent {
+			fmt.Printf("\r  Progress: %d%%", percent)
+			lastPercent = percent
+		}
 	}
 
+	fmt.Println() // New line after progress
 	return nil
 }
 
