@@ -27,10 +27,10 @@ func (m *WZImageLoader) DoWork(workRoutine int) {
 type WZDirectory struct {
 	*WZSimpleNode
 
-	Directories      map[string]*WZDirectory
-	Images           map[string]*WZImage
-	DirectoryOrder   []string // Preserves insertion order for directories
-	ImageOrder       []string // Preserves insertion order for images
+	Directories    map[string]*WZDirectory
+	Images         map[string]*WZImage
+	DirectoryOrder []string // Preserves insertion order for directories
+	ImageOrder     []string // Preserves insertion order for images
 }
 
 func NewWZDirectory(name string, parent *WZSimpleNode) *WZDirectory {
