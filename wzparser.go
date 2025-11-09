@@ -34,7 +34,9 @@ func (c *Converter) parseWZFile() error {
 	}
 
 	// Flatten nodes into list (preserving order, NOT sorting)
+	c.debugf("Flattening nodes, root has %d children", len(root.Children))
 	c.flattenNodes(root)
+	c.debugf("Total nodes after flattening: %d", len(c.nodes))
 
 	return nil
 }
@@ -90,9 +92,12 @@ func (c *Converter) traverseWZDirectory(wzDir *wz.WZDirectory, parentNode *Node)
 func (c *Converter) traverseWZImage(wzImg *wz.WZImage, parentNode *Node) {
 	wzImg.StartParse()
 
+	c.debugf("Processing image: %s, properties count: %d", parentNode.Name, len(wzImg.Properties.Order))
+
 	if wzImg.Properties != nil {
-		for _, name := range wzImg.Properties.Order {
+		for idx, name := range wzImg.Properties.Order {
 			prop := wzImg.Properties.Properties[name]
+			c.debugf("  Property[%d]: name=%s, type=%d", idx, name, prop.Type)
 			c.traverseWZVariant(name, prop, parentNode)
 		}
 	}
