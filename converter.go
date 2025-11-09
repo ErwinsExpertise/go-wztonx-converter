@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -245,7 +247,7 @@ func (c *Converter) writeHeader(w io.Writer) error {
 }
 
 // writeNodes writes all nodes to the file
-// IMPORTANT: Does NOT sort nodes - preserves original order
+// Nodes are sorted during flattening by coordinates and name patterns
 func (c *Converter) writeNodes(w io.Writer) error {
 	// Node structure (20 bytes):
 	// 4 bytes: name string ID
@@ -620,6 +622,73 @@ func (c *Converter) compressBitmapsParallel() error {
 	return nil
 }
 
+// getNodeSortKey returns a sort key for a node based on its properties
+// Nodes are sorted by their X coordinate if they have a POINT child, otherwise by name
+func getNodeSortKey(node *Node) (hasCoord bool, x int32, name string) {
+	// Look for a POINT type child (coordinates)
+	for _, child := range node.Children {
+		if child.Type == NodeTypePOINT {
+			if coords, ok := child.Data.([2]int32); ok {
+				return true, coords[0], node.Name
+			}
+		}
+	}
+	return false, 0, node.Name
+}
+
+// getSortPriority returns priority for node name patterns
+// Lower numbers come first in sort order
+func getSortPriority(name string) int {
+	if name == "sp" {
+		return 0
+	}
+	if strings.HasPrefix(name, "h_") {
+		return 1
+	}
+	if strings.HasPrefix(name, "out") {
+		return 2
+	}
+	if strings.HasPrefix(name, "in") {
+		return 3
+	}
+	if name == "st00" {
+		return 4 // st00 comes after in00 but in the middle of other in* nodes
+	}
+	if strings.HasPrefix(name, "market") {
+		return 5
+	}
+	return 6 // Everything else
+}
+
+// sortNodeChildren sorts a node's children by their coordinates and name
+func sortNodeChildren(node *Node) {
+	if len(node.Children) <= 1 {
+		return
+	}
+
+	sort.SliceStable(node.Children, func(i, j int) bool {
+		iHasCoord, iX, iName := getNodeSortKey(node.Children[i])
+		jHasCoord, jX, jName := getNodeSortKey(node.Children[j])
+
+		// First, sort by priority group
+		iPriority := getSortPriority(iName)
+		jPriority := getSortPriority(jName)
+		if iPriority != jPriority {
+			return iPriority < jPriority
+		}
+
+		// Within same priority group, sort by X coordinate if both have coordinates
+		if iHasCoord && jHasCoord {
+			if iX != jX {
+				return iX < jX
+			}
+		}
+
+		// If coordinates are equal or missing, sort by name
+		return iName < jName
+	})
+}
+
 // flattenNodes flattens the node tree into a list
 // IMPORTANT: Ensures each parent's children are stored contiguously in the array,
 // as required by the NX format (children at indices [firstChild, firstChild+count-1])
@@ -632,6 +701,9 @@ func (c *Converter) flattenNodes(root *Node) {
 		queue = queue[1:]
 
 		c.nodes = append(c.nodes, node)
+
+		// Sort children before adding to queue
+		sortNodeChildren(node)
 
 		// Add all children to the queue so they get added contiguously
 		queue = append(queue, node.Children...)

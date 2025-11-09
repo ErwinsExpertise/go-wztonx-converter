@@ -8,7 +8,7 @@ This tool converts MapleStory WZ files into the more efficient NX format. It inc
 
 ## Key Differences from the C++ Version
 
-- **Does NOT sort nodes** - Node order is preserved as-is from the WZ file
+- **Sorts nodes by coordinates** - Nodes are sorted by X coordinate within name-based groups for optimal ordering
 - Written in Go for better cross-platform support and memory safety
 - Uses LZ4 compression for bitmaps and audio data
 
@@ -130,7 +130,10 @@ This makes it easy to track conversion progress and identify if the process is s
 
 ### Node Ordering
 
-**Important**: Unlike the C++ version, this implementation **does NOT sort nodes**. Nodes are kept in their original order from the WZ file. This was a specific requirement to preserve the exact structure of the source data.
+**Important**: This implementation sorts nodes by their coordinates and name patterns for optimal ordering. Children nodes are sorted by:
+1. Name-based priority groups (sp, h_*, out*, in*, st*, market*)
+2. X coordinate within each group
+3. Alphabetically by name as a tiebreaker
 
 ### Compression
 
