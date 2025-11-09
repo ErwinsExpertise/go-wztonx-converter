@@ -544,14 +544,30 @@ func TestNXFileFormat(t *testing.T) {
 	var audioCount uint32
 	var audioOffsetTableOffset uint64
 
-	binary.Read(reader, binary.LittleEndian, &nodeCount)
-	binary.Read(reader, binary.LittleEndian, &nodeOffset)
-	binary.Read(reader, binary.LittleEndian, &stringCount)
-	binary.Read(reader, binary.LittleEndian, &stringOffsetTableOffset)
-	binary.Read(reader, binary.LittleEndian, &bitmapCount)
-	binary.Read(reader, binary.LittleEndian, &bitmapOffsetTableOffset)
-	binary.Read(reader, binary.LittleEndian, &audioCount)
-	binary.Read(reader, binary.LittleEndian, &audioOffsetTableOffset)
+	if err := binary.Read(reader, binary.LittleEndian, &nodeCount); err != nil {
+		t.Fatalf("Failed to read node count: %v", err)
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &nodeOffset); err != nil {
+		t.Fatalf("Failed to read node offset: %v", err)
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &stringCount); err != nil {
+		t.Fatalf("Failed to read string count: %v", err)
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &stringOffsetTableOffset); err != nil {
+		t.Fatalf("Failed to read string offset: %v", err)
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &bitmapCount); err != nil {
+		t.Fatalf("Failed to read bitmap count: %v", err)
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &bitmapOffsetTableOffset); err != nil {
+		t.Fatalf("Failed to read bitmap offset: %v", err)
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &audioCount); err != nil {
+		t.Fatalf("Failed to read audio count: %v", err)
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &audioOffsetTableOffset); err != nil {
+		t.Fatalf("Failed to read audio offset: %v", err)
+	}
 
 	// Validate counts
 	if nodeCount != uint32(len(converter.nodes)) {
@@ -758,9 +774,15 @@ func TestNXFileFormatReading(t *testing.T) {
 
 		var width, height uint16
 		var size uint32
-		binary.Read(reader, binary.LittleEndian, &width)
-		binary.Read(reader, binary.LittleEndian, &height)
-		binary.Read(reader, binary.LittleEndian, &size)
+		if err := binary.Read(reader, binary.LittleEndian, &width); err != nil {
+			t.Fatalf("Failed to read bitmap width: %v", err)
+		}
+		if err := binary.Read(reader, binary.LittleEndian, &height); err != nil {
+			t.Fatalf("Failed to read bitmap height: %v", err)
+		}
+		if err := binary.Read(reader, binary.LittleEndian, &size); err != nil {
+			t.Fatalf("Failed to read bitmap size: %v", err)
+		}
 
 		bitmapData := make([]byte, size)
 		_, err = reader.Read(bitmapData)

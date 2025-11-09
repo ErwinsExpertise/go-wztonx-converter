@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"runtime"
 	"sync"
@@ -38,6 +39,10 @@ type Converter struct {
 	stringMap map[string]uint32
 	bitmaps   []BitmapData
 	audio     []AudioData
+
+	// Debug logging
+	debugLog *log.Logger
+	logFile  *os.File
 }
 
 // Node represents a node in the NX file
@@ -89,8 +94,36 @@ func NewConverter(wzFile, nxFile string, client, hc bool) *Converter {
 	}
 }
 
+// EnableDebugLogging enables debug logging to the specified file
+func (c *Converter) EnableDebugLogging(logFilename string) error {
+	f, err := os.Create(logFilename)
+	if err != nil {
+		return err
+	}
+	c.logFile = f
+	c.debugLog = log.New(f, "", log.Ldate|log.Ltime|log.Lmicroseconds)
+	c.debugLog.Println("=== Debug logging enabled ===")
+	return nil
+}
+
+// debugf logs a formatted debug message if debug logging is enabled
+func (c *Converter) debugf(format string, args ...interface{}) {
+	if c.debugLog != nil {
+		c.debugLog.Printf(format, args...)
+	}
+}
+
 // Convert performs the WZ to NX conversion
 func (c *Converter) Convert() error {
+	// Close debug log file at the end if it was opened
+	if c.logFile != nil {
+		defer func() {
+			c.debugf("=== Conversion complete ===")
+			c.logFile.Close()
+		}()
+	}
+
+	c.debugf("Starting conversion: %s -> %s", c.wzFilename, c.nxFilename)
 	fmt.Print("Parsing input.......")
 
 	// Parse WZ file
@@ -142,12 +175,12 @@ func (c *Converter) writeNXData(w io.Writer) error {
 	fmt.Println("Done!")
 
 	// Write nodes
-	fmt.Printf("  Writing %d nodes...", len(c.nodes))
+	fmt.Printf("  Writing %d nodes...\n", len(c.nodes))
 	nodeOffset := uint64(52) // Header size
 	if err := c.writeNodes(w); err != nil {
 		return err
 	}
-	fmt.Println("Done!")
+	fmt.Println("  Done!")
 
 	// Write string data and offset table
 	fmt.Printf("  Writing %d strings...", len(c.strings))
@@ -254,7 +287,10 @@ func (c *Converter) writeNodes(w io.Writer) error {
 	// 2 bytes: type
 	// 8 bytes: data (type-dependent)
 
-	for _, node := range c.nodes {
+	totalNodes := len(c.nodes)
+	var lastPercent int = -1
+
+	for i, node := range c.nodes {
 		nameID := c.getStringID(node.Name)
 
 		// Calculate child info
@@ -262,9 +298,9 @@ func (c *Converter) writeNodes(w io.Writer) error {
 		var childCount uint16 = 0
 		if len(node.Children) > 0 {
 			// Find index of first child
-			for i, n := range c.nodes {
+			for j, n := range c.nodes {
 				if n == node.Children[0] {
-					firstChild = uint32(i)
+					firstChild = uint32(j)
 					break
 				}
 			}
@@ -288,8 +324,16 @@ func (c *Converter) writeNodes(w io.Writer) error {
 		if err := c.writeNodeData(w, node); err != nil {
 			return err
 		}
+
+		// Update progress
+		percent := (i + 1) * 100 / totalNodes
+		if percent != lastPercent {
+			fmt.Printf("\r  Progress: %d%%", percent)
+			lastPercent = percent
+		}
 	}
 
+	fmt.Println() // New line after progress
 	return nil
 }
 
@@ -620,7 +664,26 @@ func (c *Converter) flattenNodes(root *Node) {
 		node := queue[0]
 		queue = queue[1:]
 
+		nodeIndex := len(c.nodes)
 		c.nodes = append(c.nodes, node)
+		
+		// Log detailed information for portal nodes
+		if node.Name == "portal" || (len(node.Children) > 0 && len(node.Children) <= 20) {
+			c.debugf("Node[%d]: name='%s', children=%d", nodeIndex, node.Name, len(node.Children))
+			for i, child := range node.Children {
+				// Try to extract coordinates if this is a POINT type or has POINT children
+				coords := ""
+				for _, grandchild := range child.Children {
+					if grandchild.Type == NodeTypePOINT {
+						if data, ok := grandchild.Data.([2]int32); ok {
+							coords = fmt.Sprintf(" coords={%d,%d}", data[0], data[1])
+							break
+						}
+					}
+				}
+				c.debugf("  Child[%d]: name='%s'%s", i, child.Name, coords)
+			}
+		}
 
 		// Add all children to the queue so they get added contiguously
 		queue = append(queue, node.Children...)

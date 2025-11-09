@@ -17,7 +17,6 @@ linters-settings:
     disable:
       - shadow
     enable-all: false
-    check-shadowing: false
 
 issues:
   # Exclude unused functions in the forked wz package (from original library)
