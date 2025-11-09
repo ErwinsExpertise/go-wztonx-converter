@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/ErwinsExpertise/go-wztonx-converter/wz"
 )
@@ -54,18 +55,44 @@ func (c *Converter) traverseWZDirectory(wzDir *wz.WZDirectory, parentNode *Node)
 		c.traverseWZDirectory(dir, childNode)
 	}
 
-	// Process images in order
-	// Note: Cannot parallelize image processing because WZFileBlob's bytes.Reader
-	// is not thread-safe. Parallel goroutines would corrupt file positions.
-	for _, name := range wzDir.ImageOrder {
-		img := wzDir.Images[name]
-		childNode := &Node{
-			Name:     name,
-			Children: []*Node{},
-			Type:     NodeTypeNone,
+	// Process images in parallel using thread-safe file copies
+	// Each goroutine gets its own WZFileBlob copy via ParseWithCopy()
+	if len(wzDir.ImageOrder) > 0 {
+		// Create a slice to hold child nodes in order
+		imageNodes := make([]*Node, len(wzDir.ImageOrder))
+		var wg sync.WaitGroup
+
+		for i, name := range wzDir.ImageOrder {
+			imageNodes[i] = &Node{
+				Name:     name,
+				Children: []*Node{},
+				Type:     NodeTypeNone,
+			}
+
+			wg.Add(1)
+			// Capture loop variables
+			img := wzDir.Images[name]
+			node := imageNodes[i]
+
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						fmt.Printf("Error processing image %s: %v\n", img.GetPath(), r)
+					}
+				}()
+				defer wg.Done()
+				
+				// Use ParseWithCopy for thread-safe parsing
+				img.ParseWithCopy()
+				c.traverseWZImage(img, node)
+			}()
 		}
-		parentNode.Children = append(parentNode.Children, childNode)
-		c.traverseWZImage(img, childNode)
+
+		// Wait for all images to be processed
+		wg.Wait()
+
+		// Append nodes in order after parallel processing
+		parentNode.Children = append(parentNode.Children, imageNodes...)
 	}
 }
 

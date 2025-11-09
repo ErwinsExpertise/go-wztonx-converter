@@ -129,6 +129,9 @@ func (m *WZDirectory) Parse(file *WZFileBlob, offset int64) {
 					img.Parse(file, dataOffset)
 				}
 			} else {
+				// Store file and offset for thread-safe parallel parsing
+				img.parseFile = file
+				img.parseOffset = dataOffset
 				img.parseFuncInfo = func() {
 					img.Parse(file, dataOffset)
 				}
