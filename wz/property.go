@@ -1,5 +1,7 @@
 package wz
 
+import "strconv"
+
 type WZProperty struct {
 	Properties map[string]*WZVariant
 	Order      []string // Preserves insertion order
@@ -16,6 +18,11 @@ func ParseProperty(parent *WZSimpleNode, file *WZFileBlob, offset int64) *WZProp
 
 	if file.Debug {
 		parent.debug(file, "Properties of ", parent.GetPath(), ": ", propcount)
+	}
+
+	// Validate property count to prevent out-of-range slice allocation
+	if propcount < 0 || propcount > 1000000 {
+		panic("Invalid property count: " + strconv.Itoa(propcount))
 	}
 
 	result := &WZProperty{
