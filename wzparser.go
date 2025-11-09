@@ -33,7 +33,7 @@ func (c *Converter) parseWZFile() error {
 		c.traverseWZDirectory(wzFile.Root, root)
 	}
 
-	// Flatten nodes into list (sorting children by coordinates and name)
+	// Flatten nodes into list (preserving order, NOT sorting)
 	c.flattenNodes(root)
 
 	return nil
