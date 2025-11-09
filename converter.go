@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 )
 
@@ -562,8 +563,12 @@ func (c *Converter) compressBitmapsParallel() error {
 	errChan := make(chan error, len(c.bitmaps))
 	var wg sync.WaitGroup
 
-	// Limit concurrent goroutines to avoid overwhelming the system
-	maxWorkers := 8
+	// Use more workers for better CPU utilization
+	// Use 2x CPU count or at least 16 workers for good parallelism
+	maxWorkers := runtime.NumCPU() * 2
+	if maxWorkers < 16 {
+		maxWorkers = 16
+	}
 	semaphore := make(chan struct{}, maxWorkers)
 
 	for i := range c.bitmaps {
