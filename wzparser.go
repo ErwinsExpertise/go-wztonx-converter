@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/ErwinsExpertise/go-wztonx-converter/wz"
 )
@@ -40,8 +41,9 @@ func (c *Converter) parseWZFile() error {
 
 // traverseWZDirectory recursively traverses WZ directories
 func (c *Converter) traverseWZDirectory(wzDir *wz.WZDirectory, parentNode *Node) {
-	// Process subdirectories
-	for name, dir := range wzDir.Directories {
+	// Process subdirectories in order
+	for _, name := range wzDir.DirectoryOrder {
+		dir := wzDir.Directories[name]
 		childNode := &Node{
 			Name:     name,
 			Children: []*Node{},
@@ -51,15 +53,36 @@ func (c *Converter) traverseWZDirectory(wzDir *wz.WZDirectory, parentNode *Node)
 		c.traverseWZDirectory(dir, childNode)
 	}
 
-	// Process images
-	for name, img := range wzDir.Images {
-		childNode := &Node{
-			Name:     name,
-			Children: []*Node{},
-			Type:     NodeTypeNone,
+	// Process images in parallel for better performance
+	// Since images are independent, we can parse them concurrently
+	if len(wzDir.ImageOrder) > 0 {
+		// Create a slice to hold child nodes in order
+		imageNodes := make([]*Node, len(wzDir.ImageOrder))
+		var wg sync.WaitGroup
+
+		for i, name := range wzDir.ImageOrder {
+			imageNodes[i] = &Node{
+				Name:     name,
+				Children: []*Node{},
+				Type:     NodeTypeNone,
+			}
+
+			wg.Add(1)
+			// Capture loop variables
+			img := wzDir.Images[name]
+			node := imageNodes[i]
+
+			go func() {
+				defer wg.Done()
+				c.traverseWZImage(img, node)
+			}()
 		}
-		parentNode.Children = append(parentNode.Children, childNode)
-		c.traverseWZImage(img, childNode)
+
+		// Wait for all images to be processed
+		wg.Wait()
+
+		// Append nodes in order after parallel processing
+		parentNode.Children = append(parentNode.Children, imageNodes...)
 	}
 }
 
@@ -67,8 +90,11 @@ func (c *Converter) traverseWZDirectory(wzDir *wz.WZDirectory, parentNode *Node)
 func (c *Converter) traverseWZImage(wzImg *wz.WZImage, parentNode *Node) {
 	wzImg.StartParse()
 
-	for name, prop := range wzImg.Properties {
-		c.traverseWZVariant(name, prop, parentNode)
+	if wzImg.Properties != nil {
+		for _, name := range wzImg.Properties.Order {
+			prop := wzImg.Properties.Properties[name]
+			c.traverseWZVariant(name, prop, parentNode)
+		}
 	}
 }
 
@@ -148,9 +174,10 @@ func (c *Converter) traverseWZObject(obj interface{}, parentNode *Node) {
 			parentNode.Type = NodeTypeNone
 		}
 
-	case wz.WZProperty:
+	case *wz.WZProperty:
 		parentNode.Type = NodeTypeNone
-		for name, prop := range v {
+		for _, name := range v.Order {
+			prop := v.Properties[name]
 			c.traverseWZVariant(name, prop, parentNode)
 		}
 
@@ -167,7 +194,8 @@ func (c *Converter) traverseWZObject(obj interface{}, parentNode *Node) {
 func (c *Converter) traverseWZCanvas(canvas *wz.WZCanvas, parentNode *Node) {
 	// Process canvas properties first
 	if canvas.Properties != nil {
-		for name, prop := range canvas.Properties {
+		for _, name := range canvas.Properties.Order {
+			prop := canvas.Properties.Properties[name]
 			c.traverseWZVariant(name, prop, parentNode)
 		}
 	}

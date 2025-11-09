@@ -2,7 +2,7 @@ package wz
 
 type WZImage struct {
 	*WZSimpleNode // heh
-	Properties    WZProperty
+	Properties    *WZProperty
 	Parsed        bool
 	parseFuncInfo func()
 }
@@ -28,9 +28,9 @@ func (m *WZImage) Parse(file *WZFileBlob, offset int64) {
 	typename := file.readDeDuplicatedWZString(m.GetPath(), offset, true)
 	parsedObject := ParseObject(m.Name, typename, m.WZSimpleNode, file, offset)
 
-	objResult, isOK := parsedObject.(WZProperty)
+	objResult, isOK := parsedObject.(*WZProperty)
 	if !isOK {
-		panic("Expected object to be WZProperty")
+		panic("Expected object to be *WZProperty")
 	}
 
 	m.Properties = objResult

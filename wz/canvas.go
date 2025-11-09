@@ -12,7 +12,7 @@ type WZCanvas struct {
 
 	Data []byte
 
-	Properties WZProperty
+	Properties *WZProperty
 }
 
 func NewWZCanvas(name string, parent *WZSimpleNode) *WZCanvas {
