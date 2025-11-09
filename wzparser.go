@@ -75,6 +75,11 @@ func (c *Converter) traverseWZDirectory(wzDir *wz.WZDirectory, parentNode *Node)
 			node := imageNodes[i]
 
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						fmt.Printf("Error processing image %s: %v\n", img.GetPath(), r)
+					}
+				}()
 				defer wg.Done()
 				c.traverseWZImage(img, node)
 			}()

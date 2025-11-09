@@ -11,6 +11,11 @@ type WZDirectoryLoader struct {
 }
 
 func (m *WZDirectoryLoader) DoWork(workRoutine int) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Error parsing directory %s: %v\n", m.Directory.GetPath(), r)
+		}
+	}()
 	m.Directory.Parse(m.FileBlob, m.Offset)
 }
 
@@ -21,6 +26,11 @@ type WZImageLoader struct {
 }
 
 func (m *WZImageLoader) DoWork(workRoutine int) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Error parsing image %s: %v\n", m.Image.GetPath(), r)
+		}
+	}()
 	m.Image.Parse(m.FileBlob, m.Offset)
 }
 
