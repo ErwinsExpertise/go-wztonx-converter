@@ -1,8 +1,11 @@
 package wz
 
-type WZProperty map[string]*WZVariant
+type WZProperty struct {
+	Properties map[string]*WZVariant
+	Order      []string // Preserves insertion order
+}
 
-func ParseProperty(parent *WZSimpleNode, file *WZFileBlob, offset int64) WZProperty {
+func ParseProperty(parent *WZSimpleNode, file *WZFileBlob, offset int64) *WZProperty {
 	if file.Debug {
 		parent.debug(file, "> WZProperty::Parse")
 		defer func() { parent.debug(file, "< WZProperty::Parse") }()
@@ -15,7 +18,10 @@ func ParseProperty(parent *WZSimpleNode, file *WZFileBlob, offset int64) WZPrope
 		parent.debug(file, "Properties of ", parent.GetPath(), ": ", propcount)
 	}
 
-	variants := make(WZProperty)
+	result := &WZProperty{
+		Properties: make(map[string]*WZVariant),
+		Order:      make([]string, 0, propcount),
+	}
 
 	for i := 0; i < propcount; i++ {
 		name := file.readWZObjectUOL(parent.GetPath(), offset)
@@ -24,8 +30,9 @@ func ParseProperty(parent *WZSimpleNode, file *WZFileBlob, offset int64) WZPrope
 		}
 		variant := NewWZVariant(name, parent)
 		variant.Parse(file, offset)
-		variants[name] = variant
+		result.Properties[name] = variant
+		result.Order = append(result.Order, name) // Track insertion order
 	}
 
-	return variants
+	return result
 }

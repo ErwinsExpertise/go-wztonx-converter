@@ -27,8 +27,10 @@ func (m *WZImageLoader) DoWork(workRoutine int) {
 type WZDirectory struct {
 	*WZSimpleNode
 
-	Directories map[string]*WZDirectory
-	Images      map[string]*WZImage
+	Directories      map[string]*WZDirectory
+	Images           map[string]*WZImage
+	DirectoryOrder   []string // Preserves insertion order for directories
+	ImageOrder       []string // Preserves insertion order for images
 }
 
 func NewWZDirectory(name string, parent *WZSimpleNode) *WZDirectory {
@@ -79,6 +81,7 @@ func (m *WZDirectory) Parse(file *WZFileBlob, offset int64) {
 
 			newDir := NewWZDirectory(name, m.WZSimpleNode)
 			m.Directories[name] = newDir
+			m.DirectoryOrder = append(m.DirectoryOrder, name) // Track insertion order
 			if true {
 				work := new(WZDirectoryLoader)
 				work.Directory = newDir
@@ -95,6 +98,7 @@ func (m *WZDirectory) Parse(file *WZFileBlob, offset int64) {
 		} else {
 			img := NewWZImage(name, m.WZSimpleNode)
 			m.Images[name] = img
+			m.ImageOrder = append(m.ImageOrder, name) // Track insertion order
 			if !file.file.LazyLoading {
 				if false {
 					// Goroutine spamming

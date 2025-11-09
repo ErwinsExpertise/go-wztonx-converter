@@ -179,18 +179,22 @@ func GetChildNodes(node interface{}) map[string]interface{} {
 		for name, elem := range n.Images {
 			elements[name] = elem
 		}
-	case WZProperty:
-		for name, elem := range n {
+	case *WZProperty:
+		for name, elem := range n.Properties {
 			elements[name] = elem
 		}
 	case *WZImage:
 		n.StartParse()
-		for name, elem := range n.Properties {
-			elements[name] = elem
+		if n.Properties != nil {
+			for name, elem := range n.Properties.Properties {
+				elements[name] = elem
+			}
 		}
 	case *WZCanvas:
-		for name, elem := range n.Properties {
-			elements[name] = elem
+		if n.Properties != nil {
+			for name, elem := range n.Properties.Properties {
+				elements[name] = elem
+			}
 		}
 	case *WZVariant:
 		elements = GetChildNodes(n.Value)
