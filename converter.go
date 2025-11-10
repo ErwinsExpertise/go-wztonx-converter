@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -12,7 +13,8 @@ import (
 
 // NX file format constants
 const (
-	NXMagic = "PKG4"
+	NXMagic      = "PKG4"
+	BufferSizeMB = 4 // 4MB buffer for improved write performance
 )
 
 // Node types
@@ -81,6 +83,47 @@ type AudioData struct {
 	Data           []byte
 	CompressedData []byte
 	Offset         uint64
+}
+
+// bufferedSeeker wraps a bufio.Writer to provide both buffered writing and seeking
+type bufferedSeeker struct {
+	file   *os.File
+	writer *bufio.Writer
+}
+
+// newBufferedSeeker creates a new buffered seeker with a large buffer
+func newBufferedSeeker(file *os.File, bufferSize int) *bufferedSeeker {
+	return &bufferedSeeker{
+		file:   file,
+		writer: bufio.NewWriterSize(file, bufferSize),
+	}
+}
+
+// Write writes data to the buffer
+func (bs *bufferedSeeker) Write(p []byte) (n int, err error) {
+	return bs.writer.Write(p)
+}
+
+// Seek flushes the buffer and then seeks to the specified position
+func (bs *bufferedSeeker) Seek(offset int64, whence int) (int64, error) {
+	// Must flush before seeking
+	if err := bs.writer.Flush(); err != nil {
+		return 0, err
+	}
+	return bs.file.Seek(offset, whence)
+}
+
+// Flush flushes the buffer to the underlying file
+func (bs *bufferedSeeker) Flush() error {
+	return bs.writer.Flush()
+}
+
+// Close flushes and closes the file
+func (bs *bufferedSeeker) Close() error {
+	if err := bs.writer.Flush(); err != nil {
+		return err
+	}
+	return bs.file.Close()
 }
 
 // NewConverter creates a new converter instance
@@ -153,9 +196,17 @@ func (c *Converter) writeNXFile() error {
 	}
 	defer file.Close()
 
-	// Pass file directly as it implements io.WriteSeeker
-	// writeNXData uses seeking to update the header after writing all data
-	return c.writeNXData(file)
+	// Create buffered writer with large buffer for improved write performance
+	bufferSize := BufferSizeMB * 1024 * 1024
+	bufferedWriter := newBufferedSeeker(file, bufferSize)
+
+	// Write NX data using buffered writer
+	if err := c.writeNXData(bufferedWriter); err != nil {
+		return err
+	}
+
+	// Ensure all data is flushed
+	return bufferedWriter.Flush()
 }
 
 // writeNXData writes the actual NX format data
@@ -666,7 +717,7 @@ func (c *Converter) flattenNodes(root *Node) {
 
 		nodeIndex := len(c.nodes)
 		c.nodes = append(c.nodes, node)
-		
+
 		// Log detailed information for portal nodes
 		if node.Name == "portal" || (len(node.Children) > 0 && len(node.Children) <= 20) {
 			c.debugf("Node[%d]: name='%s', children=%d", nodeIndex, node.Name, len(node.Children))

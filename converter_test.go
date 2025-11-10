@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 	"testing"
 )
 
@@ -834,4 +835,132 @@ func TestNXFileFormatReading(t *testing.T) {
 	}
 
 	t.Log("Successfully read back all data from NX file")
+}
+
+// BenchmarkWriteWithBuffering benchmarks writing with buffered I/O
+func BenchmarkWriteWithBuffering(b *testing.B) {
+	// Create a converter with test data
+	converter := NewConverter("test.wz", "test.nx", true, false)
+
+	// Add some test strings
+	for i := 0; i < 1000; i++ {
+		converter.addString(fmt.Sprintf("string_%d", i))
+	}
+
+	// Create a large node tree
+	root := &Node{
+		Name:     "",
+		Children: []*Node{},
+		Type:     NodeTypeNone,
+	}
+
+	for i := 0; i < 100; i++ {
+		child := &Node{
+			Name:     fmt.Sprintf("child_%d", i),
+			Children: []*Node{},
+			Type:     NodeTypeInt64,
+			Data:     int64(i),
+		}
+		root.Children = append(root.Children, child)
+	}
+
+	// Add test bitmaps with realistic sizes
+	for i := 0; i < 50; i++ {
+		bitmapData := make([]byte, 1024*10) // 10KB each
+		for j := range bitmapData {
+			bitmapData[j] = byte(j % 256)
+		}
+		bitmap := BitmapData{
+			Width:          100,
+			Height:         100,
+			Data:           bitmapData,
+			CompressedData: bitmapData[:len(bitmapData)/2], // Simulate compression
+		}
+		converter.bitmaps = append(converter.bitmaps, bitmap)
+	}
+
+	// Add test audio
+	for i := 0; i < 10; i++ {
+		audioData := make([]byte, 1024*50) // 50KB each
+		audio := AudioData{
+			Length:         uint32(len(audioData)),
+			Data:           audioData,
+			CompressedData: audioData,
+		}
+		converter.audio = append(converter.audio, audio)
+	}
+
+	converter.flattenNodes(root)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		// Use a temporary file
+		tmpFile := fmt.Sprintf("/tmp/bench_test_%d.nx", i)
+		converter.nxFilename = tmpFile
+		b.StartTimer()
+
+		// Write the file
+		if err := converter.writeNXFile(); err != nil {
+			b.Fatalf("Failed to write NX file: %v", err)
+		}
+
+		b.StopTimer()
+		// Clean up
+		os.Remove(tmpFile)
+		b.StartTimer()
+	}
+}
+
+// BenchmarkBufferedSeekerWrite benchmarks the buffered seeker's write performance
+func BenchmarkBufferedSeekerWrite(b *testing.B) {
+	tmpFile := "/tmp/buffered_seeker_bench.dat"
+	defer os.Remove(tmpFile)
+
+	// Create test data
+	data := make([]byte, 1024) // 1KB
+	for i := range data {
+		data[i] = byte(i % 256)
+	}
+
+	b.Run("Buffered4MB", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			file, _ := os.Create(tmpFile)
+			bs := newBufferedSeeker(file, 4*1024*1024)
+			b.StartTimer()
+
+			// Write data many times
+			for j := 0; j < 1000; j++ {
+				bs.Write(data)
+			}
+			bs.Flush()
+
+			b.StopTimer()
+			file.Close()
+			os.Remove(tmpFile)
+			b.StartTimer()
+		}
+	})
+
+	b.Run("Unbuffered", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			b.StopTimer()
+			file, _ := os.Create(tmpFile)
+			b.StartTimer()
+
+			// Write data many times (unbuffered)
+			for j := 0; j < 1000; j++ {
+				file.Write(data)
+			}
+
+			b.StopTimer()
+			file.Close()
+			os.Remove(tmpFile)
+			b.StartTimer()
+		}
+	})
 }
