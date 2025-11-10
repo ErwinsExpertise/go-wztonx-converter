@@ -81,6 +81,9 @@ func (c *Converter) traverseWZDirectory(wzDir *wz.WZDirectory, parentNode *Node)
 					}
 				}()
 				defer wg.Done()
+				// Use ParseWithCopy for thread-safe parallel processing
+				// Each goroutine gets its own bytes.Reader copy
+				img.ParseWithCopy()
 				c.traverseWZImage(img, node)
 			}()
 		}

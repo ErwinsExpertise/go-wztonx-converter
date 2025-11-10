@@ -934,9 +934,13 @@ func BenchmarkBufferedSeekerWrite(b *testing.B) {
 
 			// Write data many times
 			for j := 0; j < 1000; j++ {
-				bs.Write(data)
+				if _, err := bs.Write(data); err != nil {
+					b.Fatal(err)
+				}
 			}
-			bs.Flush()
+			if err := bs.Flush(); err != nil {
+				b.Fatal(err)
+			}
 
 			b.StopTimer()
 			file.Close()
@@ -954,7 +958,9 @@ func BenchmarkBufferedSeekerWrite(b *testing.B) {
 
 			// Write data many times (unbuffered)
 			for j := 0; j < 1000; j++ {
-				file.Write(data)
+				if _, err := file.Write(data); err != nil {
+					b.Fatal(err)
+				}
 			}
 
 			b.StopTimer()
