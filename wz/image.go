@@ -5,6 +5,8 @@ type WZImage struct {
 	Properties    *WZProperty
 	Parsed        bool
 	parseFuncInfo func()
+	parseFile     *WZFileBlob // Original file reference for thread-safe parsing
+	parseOffset   int64       // Original offset for thread-safe parsing
 }
 
 func NewWZImage(name string, parent *WZSimpleNode) *WZImage {
@@ -43,4 +45,21 @@ func (m *WZImage) StartParse() {
 	}
 
 	m.parseFuncInfo()
+}
+
+// ParseWithCopy creates a thread-safe copy of WZFileBlob for parallel parsing
+// This prevents bytes.Reader corruption when multiple goroutines parse images concurrently
+func (m *WZImage) ParseWithCopy() {
+	if m.Parsed {
+		return
+	}
+
+	// Create a thread-safe copy of the file blob for this goroutine
+	if m.parseFile != nil {
+		fileCopy := m.parseFile.Copy()
+		m.Parse(fileCopy, m.parseOffset)
+	} else {
+		// Fallback to original method if parseFile not set
+		m.parseFuncInfo()
+	}
 }
